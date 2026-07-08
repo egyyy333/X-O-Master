@@ -52,13 +52,15 @@ import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SmartToy
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -84,6 +86,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -98,16 +102,20 @@ import com.example.data.GameRecordRepository
 import com.example.sound.GameSoundPlayer
 import com.example.ui.GameViewModel
 import com.example.ui.GameViewModelFactory
+import com.example.ui.Localizer
+import com.example.ui.FantasyAnimatedBackground
+import com.example.ui.SettingsScreen
 import com.example.ui.theme.MyApplicationTheme
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// Navigation Screen enum
+// Navigation Screen enum with Settings included
 enum class ActiveScreen {
     HOME,
     GAME,
-    STATS
+    STATS,
+    SETTINGS
 }
 
 class MainActivity : ComponentActivity() {
@@ -122,10 +130,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             MyApplicationTheme {
-                // Force Right-to-Left layout for native Arabic feeling
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-                    val viewModel: GameViewModel = viewModel(factory = viewModelFactory)
-                    
+                val database = AppDatabase.getDatabase(LocalContext.current)
+                val repository = GameRecordRepository(database.gameRecordDao())
+                val viewModelFactory = GameViewModelFactory(application, repository)
+                val viewModel: GameViewModel = viewModel(factory = viewModelFactory)
+
+                val appLanguage by viewModel.appLanguage.collectAsState()
+                val appTheme by viewModel.appTheme.collectAsState()
+
+                // Respond to language updates to force the correct RTL direction
+                val layoutDirection = if (appLanguage == "AR") LayoutDirection.Rtl else LayoutDirection.Ltr
+
+                CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                     var activeScreen by remember { mutableStateOf(ActiveScreen.HOME) }
 
                     Scaffold(
@@ -134,9 +150,9 @@ class MainActivity : ComponentActivity() {
                         bottomBar = {
                             FloatingNavigationBar(
                                 activeScreen = activeScreen,
+                                theme = appTheme,
                                 onTabSelected = { 
                                     activeScreen = it 
-                                    GameSoundPlayer.playClick()
                                 }
                             )
                         }
@@ -144,25 +160,11 @@ class MainActivity : ComponentActivity() {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0xFF090C15)) // Rich dark space theme
-                                .drawBehind {
-                                    // Custom visual decoration: Subtle glowing grid of futuristic cyber dots
-                                    val columns = 12
-                                    val rows = 24
-                                    val cellW = size.width / columns
-                                    val cellH = size.height / rows
-                                    for (i in 0..columns) {
-                                        for (j in 0..rows) {
-                                            drawCircle(
-                                                color = Color(0xFF1E293B).copy(alpha = 0.25f),
-                                                radius = 2f,
-                                                center = Offset(i * cellW, j * cellH)
-                                            )
-                                        }
-                                    }
-                                }
                                 .padding(innerPadding)
                         ) {
+                            // High performance animated canvas background matching selected theme
+                            FantasyAnimatedBackground(theme = appTheme)
+
                             CrossfadeScreen(
                                 activeScreen = activeScreen,
                                 viewModel = viewModel,
@@ -180,8 +182,15 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun FloatingNavigationBar(
     activeScreen: ActiveScreen,
+    theme: String,
     onTabSelected: (ActiveScreen) -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
+
+    val isLight = theme == "LIGHT"
+    val navBgColor = if (isLight) Color.White.copy(alpha = 0.95f) else Color(0xFF121829).copy(alpha = 0.95f)
+    val navBorderColor = if (isLight) Color(0xFFCBD5E1) else Color(0xFF1E293B)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -194,32 +203,59 @@ fun FloatingNavigationBar(
                 .widthIn(max = 500.dp)
                 .fillMaxWidth()
                 .height(68.dp)
-                .background(Color(0xFF121829).copy(alpha = 0.95f), RoundedCornerShape(32.dp))
-                .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(32.dp))
-                .padding(horizontal = 16.dp),
+                .background(navBgColor, RoundedCornerShape(32.dp))
+                .border(1.dp, navBorderColor, RoundedCornerShape(32.dp))
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             NavBarItem(
                 icon = Icons.Default.Home,
-                label = "الرئيسية",
+                label = Localizer.get("tab_home"),
                 isSelected = activeScreen == ActiveScreen.HOME,
-                onClick = { onTabSelected(ActiveScreen.HOME) },
+                theme = theme,
+                onClick = { 
+                    GameSoundPlayer.playClick()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(ActiveScreen.HOME) 
+                },
                 testTag = "nav_home_tab"
             )
             NavBarItem(
                 icon = Icons.Default.Gamepad,
-                label = "الملعب",
+                label = Localizer.get("tab_game"),
                 isSelected = activeScreen == ActiveScreen.GAME,
-                onClick = { onTabSelected(ActiveScreen.GAME) },
+                theme = theme,
+                onClick = { 
+                    GameSoundPlayer.playClick()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(ActiveScreen.GAME) 
+                },
                 testTag = "nav_game_tab"
             )
             NavBarItem(
                 icon = Icons.Default.BarChart,
-                label = "سجل الإحصائيات",
+                label = Localizer.get("tab_stats"),
                 isSelected = activeScreen == ActiveScreen.STATS,
-                onClick = { onTabSelected(ActiveScreen.STATS) },
+                theme = theme,
+                onClick = { 
+                    GameSoundPlayer.playClick()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(ActiveScreen.STATS) 
+                },
                 testTag = "nav_stats_tab"
+            )
+            NavBarItem(
+                icon = Icons.Default.Settings,
+                label = Localizer.get("tab_settings"),
+                isSelected = activeScreen == ActiveScreen.SETTINGS,
+                theme = theme,
+                onClick = { 
+                    GameSoundPlayer.playClick()
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onTabSelected(ActiveScreen.SETTINGS) 
+                },
+                testTag = "nav_settings_tab"
             )
         }
     }
@@ -230,17 +266,19 @@ fun NavBarItem(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     isSelected: Boolean,
+    theme: String,
     onClick: () -> Unit,
     testTag: String
 ) {
-    val activeColor = Color(0xFF00E5FF) // Cyber Neon Cyan
-    val inactiveColor = Color(0xFF64748B)
+    val isLight = theme == "LIGHT"
+    val activeColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val inactiveColor = if (isLight) Color(0xFF94A3B8) else Color(0xFF64748B)
 
     Column(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
             .testTag(testTag),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -272,6 +310,7 @@ fun CrossfadeScreen(
         ActiveScreen.HOME -> HomeScreen(viewModel = viewModel, onStartClicked = onNavigateToGame)
         ActiveScreen.GAME -> GameScreen(viewModel = viewModel, onBackClicked = onBackToHome)
         ActiveScreen.STATS -> StatsScreen(viewModel = viewModel)
+        ActiveScreen.SETTINGS -> SettingsScreen(viewModel = viewModel)
     }
 }
 
@@ -284,6 +323,24 @@ fun HomeScreen(
     val activeMode by viewModel.gameMode.collectAsState()
     val activeDifficulty by viewModel.botDifficulty.collectAsState()
     val chosenSymbol by viewModel.playerSymbol.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
+    val isHapticEnabled by viewModel.isHapticEnabled.collectAsState()
+
+    val haptic = LocalHapticFeedback.current
+
+    val isLight = appTheme == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
+    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+
+    fun triggerClickFeedback() {
+        GameSoundPlayer.playClick()
+        if (isHapticEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -295,22 +352,22 @@ fun HomeScreen(
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Custom Neon Pedestal Logo
-        NeonPedestalLogo()
+        // Neon Pedestal Logo (re-adapted layout)
+        NeonPedestalLogo(theme = appTheme)
 
         Text(
-            text = "إكس أو المحترف",
+            text = Localizer.get("app_name"),
             fontSize = 32.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = Color.White,
+            color = textColorPrimary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 4.dp)
         )
 
         Text(
-            text = "تحدّ الذكاء الاصطناعي بمستويات مذهلة أو العب مع أصدقائك بنقرة سريعة",
+            text = Localizer.get("app_subtitle"),
             fontSize = 14.sp,
-            color = Color(0xFF94A3B8),
+            color = textColorSecondary,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
@@ -323,13 +380,13 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .widthIn(max = 500.dp)
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF121829)),
-            border = BorderStroke(1.dp, Color(0xFF1E293B))
+            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+            border = BorderStroke(1.dp, cardBorderColor)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text(
-                    text = "١. نمط اللعبة",
-                    color = Color(0xFF00E5FF),
+                    text = Localizer.get("mode_title"),
+                    color = accentColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
                 )
@@ -340,20 +397,28 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     ModeButton(
-                        label = "ضد الكمبيوتر (البوت)",
+                        label = Localizer.get("mode_bot"),
                         icon = Icons.Default.SmartToy,
                         isSelected = activeMode == "VS_BOT",
+                        theme = appTheme,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.setGameMode("VS_BOT") },
+                        onClick = { 
+                            triggerClickFeedback()
+                            viewModel.setGameMode("VS_BOT") 
+                        },
                         testTag = "mode_bot_button"
                     )
 
                     ModeButton(
-                        label = "ضد لاعب (ثنائي)",
+                        label = Localizer.get("mode_friend"),
                         icon = Icons.Default.People,
                         isSelected = activeMode == "VS_FRIEND",
+                        theme = appTheme,
                         modifier = Modifier.weight(1f),
-                        onClick = { viewModel.setGameMode("VS_FRIEND") },
+                        onClick = { 
+                            triggerClickFeedback()
+                            viewModel.setGameMode("VS_FRIEND") 
+                        },
                         testTag = "mode_friend_button"
                     )
                 }
@@ -373,8 +438,8 @@ fun HomeScreen(
                     .padding(vertical = 8.dp)
             ) {
                 Text(
-                    text = "٢. اختر مستوى الصعوبة للذكاء الاصطناعي",
-                    color = Color(0xFF00E5FF),
+                    text = Localizer.get("difficulty_title"),
+                    color = accentColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
@@ -382,29 +447,41 @@ fun HomeScreen(
 
                 RobotDifficultyCard(
                     difficulty = "EASY",
-                    title = "مستوى سهل 🤖",
-                    description = "الكمبيوتر يرتكب أخطاء عشوائية وهو مناسب للتدريب والتعلم السريع لجميع الأعمار.",
+                    title = Localizer.get("difficulty_easy"),
+                    description = Localizer.get("difficulty_easy_desc"),
                     color = Color(0xFF4ADE80),
                     isSelected = activeDifficulty == "EASY",
-                    onClick = { viewModel.setBotDifficulty("EASY") }
+                    theme = appTheme,
+                    onClick = { 
+                        triggerClickFeedback()
+                        viewModel.setBotDifficulty("EASY") 
+                    }
                 )
 
                 RobotDifficultyCard(
                     difficulty = "MEDIUM",
-                    title = "مستوى متوسط 🧠",
-                    description = "الكمبيوتر يلعب بنقلات أذكى ويبادر بالدفاع المنظم مع بعض الأخطاء التكتيكية.",
+                    title = Localizer.get("difficulty_medium"),
+                    description = Localizer.get("difficulty_medium_desc"),
                     color = Color(0xFFFBBF24),
                     isSelected = activeDifficulty == "MEDIUM",
-                    onClick = { viewModel.setBotDifficulty("MEDIUM") }
+                    theme = appTheme,
+                    onClick = { 
+                        triggerClickFeedback()
+                        viewModel.setBotDifficulty("MEDIUM") 
+                    }
                 )
 
                 RobotDifficultyCard(
                     difficulty = "HARD",
-                    title = "مستوى مستحيل 🔥",
-                    description = "الذكاء الاصطناعي الكامل (مينيمكس). لا يخطئ أبداً، جرب أن تتحداه وتحصل على تعادل!",
+                    title = Localizer.get("difficulty_hard"),
+                    description = Localizer.get("difficulty_hard_desc"),
                     color = Color(0xFFEF4444),
                     isSelected = activeDifficulty == "HARD",
-                    onClick = { viewModel.setBotDifficulty("HARD") }
+                    theme = appTheme,
+                    onClick = { 
+                        triggerClickFeedback()
+                        viewModel.setBotDifficulty("HARD") 
+                    }
                 )
             }
         }
@@ -415,13 +492,13 @@ fun HomeScreen(
                 .fillMaxWidth()
                 .widthIn(max = 500.dp)
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF121829)),
-            border = BorderStroke(1.dp, Color(0xFF1E293B))
+            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+            border = BorderStroke(1.dp, cardBorderColor)
         ) {
             Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "٣. اختر رمزك الأساسي",
-                    color = Color(0xFF00E5FF),
+                    text = Localizer.get("symbol_title"),
+                    color = accentColor,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp,
                     modifier = Modifier.align(Alignment.Start)
@@ -437,7 +514,11 @@ fun HomeScreen(
                         symbol = "X",
                         color = Color(0xFF00E5FF),
                         isSelected = chosenSymbol == "X",
-                        onClick = { viewModel.setPlayerSymbol("X") },
+                        theme = appTheme,
+                        onClick = { 
+                            triggerClickFeedback()
+                            viewModel.setPlayerSymbol("X") 
+                        },
                         testTag = "symbol_x_select"
                     )
 
@@ -445,7 +526,11 @@ fun HomeScreen(
                         symbol = "O",
                         color = Color(0xFFFF2D55),
                         isSelected = chosenSymbol == "O",
-                        onClick = { viewModel.setPlayerSymbol("O") },
+                        theme = appTheme,
+                        onClick = { 
+                            triggerClickFeedback()
+                            viewModel.setPlayerSymbol("O") 
+                        },
                         testTag = "symbol_o_select"
                     )
                 }
@@ -457,7 +542,7 @@ fun HomeScreen(
         // Start Adventure Play Button
         Button(
             onClick = {
-                GameSoundPlayer.playClick()
+                triggerClickFeedback()
                 onStartClicked()
             },
             modifier = Modifier
@@ -467,8 +552,8 @@ fun HomeScreen(
                 .testTag("start_game_button"),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF00E5FF),
-                contentColor = Color(0xFF090C15)
+                containerColor = accentColor,
+                contentColor = if (isLight) Color.White else Color(0xFF090C15)
             )
         ) {
             Row(
@@ -477,11 +562,11 @@ fun HomeScreen(
             ) {
                 Icon(imageVector = Icons.Default.Gamepad, contentDescription = null, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(text = "ابدأ المعركة الحماسية", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(text = Localizer.get("start_battle"), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
 
-        Spacer(modifier = Modifier.height(110.dp)) // Extra padding so it doesn't overlap the floating navbar
+        Spacer(modifier = Modifier.height(110.dp)) // Padding for bottom floating navbar
     }
 }
 
@@ -490,14 +575,19 @@ fun ModeButton(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     isSelected: Boolean,
+    theme: String,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
     testTag: String
 ) {
-    val activeBorder = Color(0xFF00E5FF)
-    val inactiveBorder = Color(0xFF1E293B)
-    val activeBg = Color(0xFF1A2642)
-    val inactiveBg = Color(0xFF0F1422)
+    val isLight = theme == "LIGHT"
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    
+    val activeBorder = accentColor
+    val inactiveBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    
+    val activeBg = if (isLight) Color(0xFF8B5CF6).copy(alpha = 0.08f) else Color(0xFF1A2642)
+    val inactiveBg = if (isLight) Color(0xFFF8FAFC) else Color(0xFF0F1422)
 
     Box(
         modifier = modifier
@@ -507,10 +597,7 @@ fun ModeButton(
                 BorderStroke(1.dp, if (isSelected) activeBorder else inactiveBorder),
                 RoundedCornerShape(16.dp)
             )
-            .clickable {
-                GameSoundPlayer.playClick()
-                onClick()
-            }
+            .clickable { onClick() }
             .testTag(testTag)
             .padding(12.dp),
         contentAlignment = Alignment.Center
@@ -522,13 +609,13 @@ fun ModeButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isSelected) Color(0xFF00E5FF) else Color(0xFF64748B),
+                tint = if (isSelected) accentColor else Color(0xFF64748B),
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
-                color = if (isSelected) Color.White else Color(0xFF94A3B8),
+                color = if (isSelected) (if (isLight) Color(0xFF0F172A) else Color.White) else Color(0xFF94A3B8),
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
@@ -538,64 +625,27 @@ fun ModeButton(
 }
 
 @Composable
-fun DifficultyChip(
-    label: String,
-    color: Color,
-    isSelected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-    testTag: String
-) {
-    Box(
-        modifier = modifier
-            .height(44.dp)
-            .background(
-                if (isSelected) color.copy(alpha = 0.2f) else Color(0xFF0F1422),
-                RoundedCornerShape(12.dp)
-            )
-            .border(
-                BorderStroke(1.dp, if (isSelected) color else Color(0xFF1E293B)),
-                RoundedCornerShape(12.dp)
-            )
-            .clickable {
-                GameSoundPlayer.playClick()
-                onClick()
-            }
-            .testTag(testTag),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            color = if (isSelected) color else Color(0xFF64748B),
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold
-        )
-    }
-}
-
-@Composable
 fun SymbolSelectButton(
     symbol: String,
     color: Color,
     isSelected: Boolean,
+    theme: String,
     onClick: () -> Unit,
     testTag: String
 ) {
+    val isLight = theme == "LIGHT"
+    val inactiveBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val bg = if (isSelected) color.copy(alpha = 0.15f) else (if (isLight) Color(0xFFF8FAFC) else Color(0xFF0F1422))
+
     Box(
         modifier = Modifier
             .size(72.dp)
-            .background(
-                if (isSelected) color.copy(alpha = 0.15f) else Color(0xFF0F1422),
-                RoundedCornerShape(16.dp)
-            )
+            .background(bg, RoundedCornerShape(16.dp))
             .border(
-                BorderStroke(2.dp, if (isSelected) color else Color(0xFF1E293B)),
+                BorderStroke(2.dp, if (isSelected) color else inactiveBorder),
                 RoundedCornerShape(16.dp)
             )
-            .clickable {
-                GameSoundPlayer.playClick()
-                onClick()
-            }
+            .clickable { onClick() }
             .testTag(testTag),
         contentAlignment = Alignment.Center
     ) {
@@ -626,6 +676,24 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
 
     val highlightedCell by viewModel.highlightedCell.collectAsState()
     val hintCount by viewModel.hintCount.collectAsState()
+
+    val appTheme by viewModel.appTheme.collectAsState()
+    val isHapticEnabled by viewModel.isHapticEnabled.collectAsState()
+
+    val haptic = LocalHapticFeedback.current
+
+    val isLight = appTheme == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
+    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+
+    fun triggerMoveFeedback() {
+        if (isHapticEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
 
     // Real-time counting match timer
     var secondsElapsed by remember { mutableStateOf(0) }
@@ -670,20 +738,18 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                 IconButton(
                     onClick = {
                         GameSoundPlayer.playClick()
+                        triggerMoveFeedback()
                         onBackClicked()
                     },
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Color(0xFF121829), CircleShape)
-                        .border(1.dp, Color(0xFF1E293B), CircleShape)
+                        .background(cardBgColor, CircleShape)
+                        .border(1.dp, cardBorderColor, CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh, // Rotate for back-like feel or simple refresh
-                        contentDescription = "الرجوع",
-                        tint = Color.White,
-                        modifier = Modifier.drawBehind {
-                            // Rotate the icon to point left/right in RTL
-                        }
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = Localizer.get("cancel"),
+                        tint = textColorPrimary
                     )
                 }
 
@@ -704,11 +770,11 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
-                                .background(Color(0xFF121829), CircleShape)
+                                .background(cardBgColor, CircleShape)
                                 .border(
                                     BorderStroke(
                                         width = if (activeX) 2.dp else 1.dp,
-                                        color = if (activeX) Color(0xFF00E5FF) else Color(0xFF1E293B)
+                                        color = if (activeX) Color(0xFF00E5FF) else cardBorderColor
                                     ),
                                     CircleShape
                                 )
@@ -730,15 +796,15 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "اللاعب X", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(text = Localizer.get("player_x"), color = textColorPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
 
                     // VS Circle
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .background(Color(0xFF1B223C), CircleShape)
-                            .border(1.dp, Color(0xFF2E3B5E), CircleShape),
+                            .background(if (isLight) Color(0xFFCBD5E1) else Color(0xFF1B223C), CircleShape)
+                            .border(1.dp, if (isLight) Color(0xFF94A3B8) else Color(0xFF2E3B5E), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -761,11 +827,11 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
-                                .background(Color(0xFF121829), CircleShape)
+                                .background(cardBgColor, CircleShape)
                                 .border(
                                     BorderStroke(
                                         width = if (activeO) 2.dp else 1.dp,
-                                        color = if (activeO) Color(0xFFFF2D55) else Color(0xFF1E293B)
+                                        color = if (activeO) Color(0xFFFF2D55) else cardBorderColor
                                     ),
                                     CircleShape
                                 )
@@ -788,28 +854,26 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (gameMode == "VS_BOT") "البوت O" else "اللاعب O",
-                            color = Color.White,
+                            text = if (gameMode == "VS_BOT") Localizer.get("bot_o") else Localizer.get("player_o"),
+                            color = textColorPrimary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
                 }
 
-                // Info Button
+                // Info Icon
                 IconButton(
-                    onClick = {
-                        GameSoundPlayer.playClick()
-                    },
+                    onClick = { GameSoundPlayer.playClick() },
                     modifier = Modifier
                         .size(44.dp)
-                        .background(Color(0xFF121829), CircleShape)
-                        .border(1.dp, Color(0xFF1E293B), CircleShape)
+                        .background(cardBgColor, CircleShape)
+                        .border(1.dp, cardBorderColor, CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
-                        contentDescription = "قواعد اللعبة",
-                        tint = Color(0xFF94A3B8)
+                        contentDescription = null,
+                        tint = textColorSecondary
                     )
                 }
             }
@@ -821,8 +885,8 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = 500.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF121829)),
-                border = BorderStroke(1.dp, Color(0xFF1E293B))
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
             ) {
                 Row(
                     modifier = Modifier
@@ -831,9 +895,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Turn Title message
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Pulse dot indicating turn
                         val pulseDotAnim = rememberInfiniteTransition(label = "pulseDot").animateFloat(
                             initialValue = 0.4f,
                             targetValue = 1.0f,
@@ -851,48 +913,46 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         
-                        val bannerMsg = if (isGameOver) "الجولة انتهت!" else {
-                            if (isBotThinking) "جاري تفكير البوت..." else {
-                                if (gameMode == "VS_BOT" && currentTurn == "X") "دورك لتباغت الخصم!"
-                                else if (gameMode == "VS_BOT") "دور البوت الذكي..."
-                                else "دور اللاعب $currentTurn الآن"
+                        val bannerMsg = if (isGameOver) Localizer.get("game_over") else {
+                            if (isBotThinking) Localizer.get("turn_bot") else {
+                                if (gameMode == "VS_BOT" && currentTurn == "X") Localizer.get("turn_your")
+                                else if (gameMode == "VS_BOT") Localizer.get("turn_bot")
+                                else String.format(Localizer.get("turn_player"), currentTurn)
                             }
                         }
                         Text(
                             text = bannerMsg,
-                            color = Color.White,
+                            color = textColorPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
 
-                    // Live E-Sports Match Timer
+                    // Timer Box
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFF090C15), RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFF1E293B), RoundedCornerShape(8.dp))
+                            .background(if (isLight) Color(0xFFF1F5F9) else Color(0xFF090C15), RoundedCornerShape(8.dp))
+                            .border(1.dp, cardBorderColor, RoundedCornerShape(8.dp))
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = formattedTime,
-                                color = Color(0xFFFFD700),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Text(
+                            text = formattedTime,
+                            color = Color(0xFFFFD700),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. 3x3 Grid Board Card
+            // 3. 3x3 Grid Board Card (Dynamic, Neon Win lines, Glow cells)
             Box(
                 modifier = Modifier
                     .size(310.dp)
-                    .background(Color(0xFF0F1424), RoundedCornerShape(24.dp))
-                    .border(2.dp, Color(0xFF1E293B), RoundedCornerShape(24.dp))
+                    .background(if (isLight) Color.White else Color(0xFF0F1424), RoundedCornerShape(24.dp))
+                    .border(2.dp, cardBorderColor, RoundedCornerShape(24.dp))
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -901,7 +961,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     val size = this.size.width
                     val step = size / 3
                     val strokeW = 4f
-                    val strokeColor = Color(0xFF1E293B)
+                    val strokeColor = cardBorderColor
 
                     // Verticals
                     drawLine(strokeColor, Offset(step, 8f), Offset(step, size - 8f), strokeW)
@@ -912,7 +972,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     drawLine(strokeColor, Offset(8f, step * 2), Offset(size - 8f, step * 2), strokeW)
                 }
 
-                // Interactive Cell Grid overlay
+                // Interactive Cell Grid
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.SpaceEvenly
@@ -946,13 +1006,13 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                                         .padding(4.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
-                                            if (isWinningCell) Color(0xFF1E2942)
+                                            if (isWinningCell) Color(0xFFFFD700).copy(alpha = 0.15f)
                                             else if (isHintCell) Color(0xFFFFD700).copy(alpha = 0.1f * hintPulse)
                                             else Color.Transparent
                                         )
                                         .border(
                                             BorderStroke(
-                                                width = if (isWinningCell) 2.dp else if (isHintCell) 2.5.dp else 0.dp,
+                                                width = if (isWinningCell) 2.5.dp else if (isHintCell) 2.dp else 0.dp,
                                                 color = if (isWinningCell) Color(0xFFFFD700)
                                                 else if (isHintCell) Color(0xFFFFD700).copy(alpha = hintPulse)
                                                 else Color.Transparent
@@ -960,6 +1020,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                                             shape = RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
+                                            triggerMoveFeedback()
                                             viewModel.onCellClick(cellIndex)
                                         }
                                         .testTag("cell_$cellIndex"),
@@ -967,15 +1028,9 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                                 ) {
                                     if (cellSymbol != null) {
                                         if (cellSymbol == "X") {
-                                            XSymbol(
-                                                modifier = Modifier.size(52.dp),
-                                                color = Color(0xFF00E5FF)
-                                            )
+                                            XSymbol(modifier = Modifier.size(52.dp), color = Color(0xFF00E5FF))
                                         } else if (cellSymbol == "O") {
-                                            OSymbol(
-                                                modifier = Modifier.size(52.dp),
-                                                color = Color(0xFFFF2D55)
-                                            )
+                                            OSymbol(modifier = Modifier.size(52.dp), color = Color(0xFFFF2D55))
                                         }
                                     }
                                 }
@@ -998,6 +1053,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                 Button(
                     onClick = {
                         GameSoundPlayer.playClick()
+                        triggerMoveFeedback()
                         viewModel.resetGame()
                     },
                     modifier = Modifier
@@ -1006,18 +1062,19 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         .testTag("reset_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1E293B),
-                        contentColor = Color.White
+                        containerColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                        contentColor = textColorPrimary
                     )
                 ) {
                     Icon(imageVector = Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "إعادة جولة", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(text = Localizer.get("re_round"), fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
                 // Undo Button
                 Button(
                     onClick = {
+                        triggerMoveFeedback()
                         viewModel.undoLastMove()
                     },
                     modifier = Modifier
@@ -1026,17 +1083,18 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         .testTag("undo_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF14192B),
-                        contentColor = Color(0xFF94A3B8)
+                        containerColor = if (isLight) Color(0xFFF1F5F9) else Color(0xFF14192B),
+                        contentColor = textColorSecondary
                     ),
-                    border = BorderStroke(1.dp, Color(0xFF2E3B5E))
+                    border = BorderStroke(1.dp, cardBorderColor)
                 ) {
-                    Text(text = "تراجع ↩", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(text = "${Localizer.get("undo")} ↩", fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
 
-                // Hint Button with badge count
+                // Hint Button
                 Button(
                     onClick = {
+                        triggerMoveFeedback()
                         viewModel.requestHint()
                     },
                     modifier = Modifier
@@ -1045,24 +1103,19 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         .testTag("hint_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (hintCount > 0) Color(0xFF0F2B3E) else Color(0xFF101426),
+                        containerColor = if (hintCount > 0) Color(0xFF0F2B3E) else (if (isLight) Color(0xFFF1F5F9) else Color(0xFF101426)),
                         contentColor = if (hintCount > 0) Color(0xFFFFD700) else Color(0xFF64748B)
                     ),
-                    border = BorderStroke(1.dp, if (hintCount > 0) Color(0xFFFFD700).copy(alpha = 0.4f) else Color(0xFF1E293B))
+                    border = BorderStroke(1.dp, if (hintCount > 0) Color(0xFFFFD700).copy(alpha = 0.4f) else cardBorderColor)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Text(text = "تلميح ✨ ($hintCount)", fontWeight = FontWeight.Bold, fontSize = 11.sp)
-                    }
+                    Text(text = "${Localizer.get("hint")} ✨ ($hintCount)", fontWeight = FontWeight.Bold, fontSize = 11.sp)
                 }
             }
 
-            Spacer(modifier = Modifier.height(110.dp)) // Padding for floating BottomBar
+            Spacer(modifier = Modifier.height(110.dp)) // Padding for BottomBar
         }
 
-        // 5. High-Fidelity Victory Overlay (Renders full-screen celebration when Game is Over)
+        // 5. Celebration Victory Overlay
         if (isGameOver) {
             VictoryOverlay(
                 winner = winner,
@@ -1070,10 +1123,13 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                 scoreX = scoreX,
                 scoreO = scoreO,
                 scoreDraws = scoreDraws,
+                theme = appTheme,
                 onPlayAgain = {
+                    triggerMoveFeedback()
                     viewModel.resetGame()
                 },
                 onMainMenu = {
+                    triggerMoveFeedback()
                     viewModel.resetGame()
                     onBackClicked()
                 }
@@ -1082,180 +1138,31 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
     }
 }
 
-@Composable
-fun ScoreItem(
-    label: String,
-    score: Int,
-    color: Color
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(text = label, color = Color(0xFF94A3B8), fontSize = 12.sp)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = score.toString(),
-            color = color,
-            fontSize = 26.sp,
-            fontWeight = FontWeight.Black
-        )
-    }
-}
 
-@Composable
-fun VerticalDivider(color: Color) {
-    Box(
-        modifier = Modifier
-            .width(1.dp)
-            .height(48.dp)
-            .background(color)
-    )
-}
-
-@Composable
-fun GameStatusBanner(
-    winner: String?,
-    currentTurn: String,
-    isGameOver: Boolean,
-    gameMode: String,
-    isBotThinking: Boolean,
-    botDifficulty: String
-) {
-    val infiniteTransition = rememberInfiniteTransition(label = "bannerPulse")
-    val alphaAnim by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alphaBanner"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .widthIn(max = 500.dp)
-            .height(60.dp)
-            .background(Color(0xFF121829), RoundedCornerShape(16.dp))
-            .border(BorderStroke(1.dp, Color(0xFF1E293B)), RoundedCornerShape(16.dp))
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        if (isGameOver) {
-            if (winner != null) {
-                val winnerColor = if (winner == "X") Color(0xFF00E5FF) else Color(0xFFFF2D55)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Star,
-                        contentDescription = null,
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "فاز اللاعب ",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = " $winner ",
-                        color = winnerColor,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Black
-                    )
-                    Text(
-                        text = "بجدارة! 🎉",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Text(
-                        text = "انتهت الجولة بالتعادل! 🤝",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        } else {
-            if (isBotThinking) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.SmartToy,
-                        contentDescription = null,
-                        tint = Color(0xFFFF2D55),
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "الكمبيوتر يفكّر في نقلته الفائقة...",
-                        color = Color(0xFFFF2D55).copy(alpha = alphaAnim),
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            } else {
-                val turnColor = if (currentTurn == "X") Color(0xFF00E5FF) else Color(0xFFFF2D55)
-                val isYourTurn = gameMode == "VS_BOT" && currentTurn == "X"
-                val displayMsg = if (gameMode == "VS_BOT") {
-                    if (isYourTurn) "دورك الآن لتباغت الخصم!" else "دور البوت..."
-                } else {
-                    "دور اللاعب "
-                }
-
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    if (gameMode == "VS_BOT" && isYourTurn) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = null,
-                            tint = Color(0xFF00E5FF),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
-                    Text(
-                        text = displayMsg,
-                        color = Color.White,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    if (gameMode == "VS_FRIEND" || (gameMode == "VS_BOT" && !isYourTurn)) {
-                        Text(
-                            text = " $currentTurn ",
-                            color = turnColor,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Black
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-// 3. STATS SCREEN
+// 3. STATS SCREEN (With Battle history & Achievements system)
 @Composable
 fun StatsScreen(viewModel: GameViewModel) {
     val history by viewModel.history.collectAsState()
+    val appTheme by viewModel.appTheme.collectAsState()
+    val isHapticEnabled by viewModel.isHapticEnabled.collectAsState()
+
+    val haptic = LocalHapticFeedback.current
+
+    val isLight = appTheme == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
+    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+
+    var activeStatsTab by remember { mutableStateOf(0) } // 0: History, 1: Achievements
+
+    fun triggerTabFeedback() {
+        GameSoundPlayer.playClick()
+        if (isHapticEnabled) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1267,110 +1174,232 @@ fun StatsScreen(viewModel: GameViewModel) {
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "سجل الإحصائيات والمعارك",
+            text = Localizer.get("stats_title"),
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = textColorPrimary,
             textAlign = TextAlign.Start,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Text(
+            text = Localizer.get("stats_subtitle"),
+            fontSize = 12.sp,
+            color = textColorSecondary,
+            textAlign = TextAlign.Start,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp)
+        )
+
+        // Custom Double-Sliding Tabs
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp)
-        )
+                .widthIn(max = 500.dp)
+                .height(48.dp)
+                .background(cardBgColor, RoundedCornerShape(24.dp))
+                .border(1.dp, cardBorderColor, RoundedCornerShape(24.dp))
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (activeStatsTab == 0) accentColor else Color.Transparent)
+                    .clickable {
+                        triggerTabFeedback()
+                        activeStatsTab = 0
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = Localizer.get("history_log"),
+                    color = if (activeStatsTab == 0) (if (isLight) Color.White else Color(0xFF090C15)) else textColorSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(if (activeStatsTab == 1) accentColor else Color.Transparent)
+                    .clickable {
+                        triggerTabFeedback()
+                        activeStatsTab = 1
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = Localizer.get("achievements"),
+                    color = if (activeStatsTab == 1) (if (isLight) Color.White else Color(0xFF090C15)) else textColorSecondary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
 
         val totalGames = history.size
         val wins = history.count { it.winnerSymbol != null && it.winnerSymbol == it.playerSymbol }
         val ties = history.count { it.winnerSymbol == null }
         val losses = totalGames - wins - ties
 
-        // History Chart Card
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 500.dp)
-                .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFF121829)),
-            border = BorderStroke(1.dp, Color(0xFF1E293B))
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "الرسم البياني للنتائج الأخيرة",
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                StatsRingChart(wins = wins, losses = losses, ties = ties)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "المعارك السابقة ($totalGames)",
-                fontSize = 15.sp,
-                color = Color(0xFF64748B),
-                fontWeight = FontWeight.Bold
-            )
-
-            if (totalGames > 0) {
-                IconButton(
-                    onClick = {
-                        GameSoundPlayer.playClick()
-                        viewModel.clearHistory()
-                    },
-                    modifier = Modifier.testTag("clear_history_button")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "حذف السجل",
-                        tint = Color(0xFFEF4444)
-                    )
-                }
-            }
-        }
-
-        if (totalGames == 0) {
-            Box(
+        if (activeStatsTab == 0) {
+            // VIEW TABS 1: HISTORY LOGS & SUMMARY
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .widthIn(max = 500.dp)
+                    .padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = Color(0xFF1E293B),
-                        modifier = Modifier.size(56.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column(modifier = Modifier.padding(16.dp)) {
+                    StatsRingChart(wins = wins, losses = losses, ties = ties, theme = appTheme)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${Localizer.get("history_log")} ($totalGames)",
+                    fontSize = 14.sp,
+                    color = textColorSecondary,
+                    fontWeight = FontWeight.Bold
+                )
+
+                if (totalGames > 0) {
+                    IconButton(
+                        onClick = {
+                            triggerTabFeedback()
+                            viewModel.clearHistory()
+                        },
+                        modifier = Modifier.testTag("clear_history_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = Localizer.get("clear_history"),
+                            tint = Color(0xFFEF4444)
+                        )
+                    }
+                }
+            }
+
+            if (totalGames == 0) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "لا توجد معارك مسجلة بعد. العب بضع جولات لتظهر هنا!",
-                        color = Color(0xFF475569),
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center
+                        text = Localizer.get("no_records"),
+                        color = textColorSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(24.dp)
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(history) { record ->
+                        HistoryItemCard(record = record, theme = appTheme)
+                    }
+                    item {
+                        Spacer(modifier = Modifier.height(110.dp)) // padding for bottom bar
+                    }
                 }
             }
         } else {
+            // VIEW TABS 2: ACHIEVEMENT PROGRESS
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .padding(vertical = 4.dp),
+                    .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(history) { record ->
-                    HistoryItemCard(record = record)
+                // Calculation of achievements
+                val firstWinUnlocked = history.any { it.winnerSymbol != null && it.winnerSymbol == it.playerSymbol }
+                val hardConquerorUnlocked = history.any { it.gameMode == "BOT_HARD" && (it.winnerSymbol == it.playerSymbol || it.winnerSymbol == null) }
+                val legendaryUnlocked = totalGames >= 10
+
+                var maxStreak = 0
+                var currentStreak = 0
+                val chronological = history.reversed()
+                chronological.forEach { rec ->
+                    val won = rec.winnerSymbol != null && rec.winnerSymbol == rec.playerSymbol
+                    if (won) {
+                        currentStreak++
+                        maxStreak = maxOf(maxStreak, currentStreak)
+                    } else {
+                        currentStreak = 0
+                    }
                 }
+                val streakUnlocked = maxStreak >= 3
+                val hintAchievementUnlocked = viewModel.didUseAllThreeHints()
+
                 item {
-                    Spacer(modifier = Modifier.height(110.dp)) // Padding for bottom floating bar
+                    AchievementBadgeRow(
+                        name = Localizer.get("ach_first_win"),
+                        desc = Localizer.get("ach_first_win_desc"),
+                        isUnlocked = firstWinUnlocked,
+                        theme = appTheme
+                    )
+                }
+
+                item {
+                    AchievementBadgeRow(
+                        name = Localizer.get("ach_hard_draw"),
+                        desc = Localizer.get("ach_hard_draw_desc"),
+                        isUnlocked = hardConquerorUnlocked,
+                        theme = appTheme
+                    )
+                }
+
+                item {
+                    AchievementBadgeRow(
+                        name = Localizer.get("ach_streak"),
+                        desc = Localizer.get("ach_streak_desc"),
+                        isUnlocked = streakUnlocked,
+                        theme = appTheme
+                    )
+                }
+
+                item {
+                    AchievementBadgeRow(
+                        name = Localizer.get("ach_hint"),
+                        desc = Localizer.get("ach_hint_desc"),
+                        isUnlocked = hintAchievementUnlocked,
+                        theme = appTheme
+                    )
+                }
+
+                item {
+                    AchievementBadgeRow(
+                        name = Localizer.get("ach_legend"),
+                        desc = Localizer.get("ach_legend_desc"),
+                        isUnlocked = legendaryUnlocked,
+                        theme = appTheme
+                    )
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(110.dp)) // Bottom padding
                 }
             }
         }
@@ -1378,8 +1407,88 @@ fun StatsScreen(viewModel: GameViewModel) {
 }
 
 @Composable
-fun StatsRingChart(wins: Int, losses: Int, ties: Int) {
+fun AchievementBadgeRow(
+    name: String,
+    desc: String,
+    isUnlocked: Boolean,
+    theme: String
+) {
+    val isLight = theme == "LIGHT"
+    val cardBg = if (isLight) Color.White else Color(0xFF101426)
+    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+
+    val badgeColor = if (isUnlocked) Color(0xFFFFD700) else Color(0xFF64748B)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 500.dp),
+        colors = CardDefaults.cardColors(containerColor = cardBg),
+        border = BorderStroke(1.dp, cardBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(badgeColor.copy(alpha = 0.12f), CircleShape)
+                    .border(1.dp, badgeColor.copy(alpha = 0.35f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isUnlocked) Icons.Default.EmojiEvents else Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = badgeColor,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = name,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = textColorPrimary
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = desc,
+                    fontSize = 11.sp,
+                    color = textColorSecondary
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .background(
+                        if (isUnlocked) Color(0xFF4ADE80).copy(alpha = 0.15f) else Color(0xFFEF4444).copy(alpha = 0.1f),
+                        RoundedCornerShape(8.dp)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = if (isUnlocked) Localizer.get("unlocked") else Localizer.get("locked"),
+                    color = if (isUnlocked) Color(0xFF4ADE80) else Color(0xFFEF4444),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun StatsRingChart(wins: Int, losses: Int, ties: Int, theme: String) {
     val total = wins + losses + ties
+    val isLight = theme == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+
     if (total == 0) {
         Box(
             modifier = Modifier
@@ -1388,9 +1497,9 @@ fun StatsRingChart(wins: Int, losses: Int, ties: Int) {
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "ابدأ اللعب أولاً لتسجيل إحصائياتك!",
-                color = Color(0xFF475569),
-                style = MaterialTheme.typography.bodyMedium,
+                text = Localizer.get("no_records"),
+                color = textColorSecondary,
+                fontSize = 13.sp,
                 textAlign = TextAlign.Center
             )
         }
@@ -1452,10 +1561,10 @@ fun StatsRingChart(wins: Int, losses: Int, ties: Int) {
                 }
             }
             Text(
-                text = "$total\nجولة",
-                fontSize = 12.sp,
+                text = "$total\n${Localizer.get("stats_played")}",
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White,
+                color = textColorPrimary,
                 textAlign = TextAlign.Center
             )
         }
@@ -1463,15 +1572,16 @@ fun StatsRingChart(wins: Int, losses: Int, ties: Int) {
         Column(
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            LegendItem(color = Color(0xFF00E5FF), label = "فوز", count = wins, percent = (wins * 100 / total))
-            LegendItem(color = Color(0xFF64748B), label = "تعادل", count = ties, percent = (ties * 100 / total))
-            LegendItem(color = Color(0xFFFF2D55), label = "خسارة", count = losses, percent = (losses * 100 / total))
+            LegendItem(color = Color(0xFF00E5FF), label = Localizer.get("stats_wins"), count = wins, percent = (wins * 100 / total), theme = theme)
+            LegendItem(color = Color(0xFF64748B), label = Localizer.get("stats_draws"), count = ties, percent = (ties * 100 / total), theme = theme)
+            LegendItem(color = Color(0xFFFF2D55), label = Localizer.get("stats_losses"), count = losses, percent = (losses * 100 / total), theme = theme)
         }
     }
 }
 
 @Composable
-fun LegendItem(color: Color, label: String, count: Int, percent: Int) {
+fun LegendItem(color: Color, label: String, count: Int, percent: Int, theme: String) {
+    val isLight = theme == "LIGHT"
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Start
@@ -1484,7 +1594,7 @@ fun LegendItem(color: Color, label: String, count: Int, percent: Int) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "$label: $count ($percent%)",
-            color = Color.White,
+            color = if (isLight) Color(0xFF0F172A) else Color.White,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium
         )
@@ -1492,28 +1602,29 @@ fun LegendItem(color: Color, label: String, count: Int, percent: Int) {
 }
 
 @Composable
-fun HistoryItemCard(record: GameRecord) {
+fun HistoryItemCard(record: GameRecord, theme: String) {
+    val isLight = theme == "LIGHT"
     val isWin = record.winnerSymbol != null && record.winnerSymbol == record.playerSymbol
     val isTie = record.winnerSymbol == null
 
     val statusText = when {
-        isWin -> "فوز ساحق"
-        isTie -> "تعادل عادل"
-        else -> "هزيمة"
+        isWin -> Localizer.get("stats_wins")
+        isTie -> Localizer.get("stats_draws")
+        else -> Localizer.get("stats_losses")
     }
 
     val statusColor = when {
-        isWin -> Color(0xFF4ADE80) // Green
-        isTie -> Color(0xFF94A3B8) // Gray
-        else -> Color(0xFFFF2D55) // Pink Red
+        isWin -> Color(0xFF4ADE80)
+        isTie -> Color(0xFF94A3B8)
+        else -> Color(0xFFFF2D55)
     }
 
     val modeText = when (record.gameMode) {
-        "BOT_EASY" -> "ضد البوت (سهل)"
-        "BOT_MEDIUM" -> "ضد البوت (متوسط)"
-        "BOT_HARD" -> "ضد البوت (صعب)"
-        "FRIEND" -> "ضد لاعب (ثنائي)"
-        else -> "تحدي"
+        "BOT_EASY" -> Localizer.get("difficulty_easy")
+        "BOT_MEDIUM" -> Localizer.get("difficulty_medium")
+        "BOT_HARD" -> Localizer.get("difficulty_hard")
+        "FRIEND" -> Localizer.get("mode_friend")
+        else -> "Battle"
     }
 
     val formattedDate = remember(record.timestamp) {
@@ -1529,8 +1640,8 @@ fun HistoryItemCard(record: GameRecord) {
         modifier = Modifier
             .fillMaxWidth()
             .widthIn(max = 500.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF0F1422)),
-        border = BorderStroke(1.dp, Color(0xFF1E293B).copy(alpha = 0.5f))
+        colors = CardDefaults.cardColors(containerColor = if (isLight) Color.White else Color(0xFF0F1422)),
+        border = BorderStroke(1.dp, if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B).copy(alpha = 0.5f))
     ) {
         Row(
             modifier = Modifier
@@ -1542,14 +1653,14 @@ fun HistoryItemCard(record: GameRecord) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = modeText,
-                    color = Color.White,
+                    color = if (isLight) Color(0xFF0F172A) else Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = formattedDate,
-                    color = Color(0xFF475569),
+                    color = if (isLight) Color(0xFF64748B) else Color(0xFF475569),
                     fontSize = 11.sp
                 )
             }
@@ -1571,7 +1682,6 @@ fun HistoryItemCard(record: GameRecord) {
     }
 }
 
-
 @Composable
 fun XSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFF00E5FF)) {
     val scaleAnim = rememberInfiniteTransition(label = "XGlow").animateFloat(
@@ -1589,7 +1699,6 @@ fun XSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFF00E5FF)) {
         val padding = 8f
         val glowRadius = strokeWidth * 1.5f * scaleAnim.value
 
-        // Draw neon glow first
         drawLine(
             color = color.copy(alpha = 0.35f),
             start = Offset(padding, padding),
@@ -1605,7 +1714,6 @@ fun XSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFF00E5FF)) {
             cap = StrokeCap.Round
         )
 
-        // Draw solid foreground line
         drawLine(
             color = color,
             start = Offset(padding, padding),
@@ -1640,7 +1748,6 @@ fun OSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFFFF2D55)) {
         val strokeWidth = 14f
         val glowRadius = strokeWidth * 1.5f * scaleAnim.value
 
-        // Draw neon glow first
         drawCircle(
             color = color.copy(alpha = 0.35f),
             radius = radius,
@@ -1648,7 +1755,6 @@ fun OSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFFFF2D55)) {
             style = Stroke(width = strokeWidth + glowRadius, cap = StrokeCap.Round)
         )
 
-        // Draw solid foreground
         drawCircle(
             color = color,
             radius = radius,
@@ -1658,10 +1764,7 @@ fun OSymbol(modifier: Modifier = Modifier, color: Color = Color(0xFFFF2D55)) {
     }
 }
 
-// ==========================================
-// CUSTOM HIGH-FIDELITY NEON GRAPHICS
-// ==========================================
-
+// Robot face graphics
 @Composable
 fun RobotFaceIcon(difficulty: String, color: Color) {
     Canvas(modifier = Modifier.size(54.dp)) {
@@ -1669,7 +1772,6 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
         val h = size.height
         val strokeW = 3f
         
-        // Antenna
         drawLine(
             color = color,
             start = Offset(w / 2, h * 0.25f),
@@ -1683,9 +1785,7 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
             center = Offset(w / 2, h * 0.1f)
         )
         
-        // Ears / Antennas on sides
         if (difficulty == "HARD") {
-            // High-tech angular side pieces
             drawRect(
                 color = color,
                 topLeft = Offset(w * 0.1f, h * 0.45f),
@@ -1697,12 +1797,10 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
                 size = androidx.compose.ui.geometry.Size(w * 0.08f, h * 0.2f)
             )
         } else {
-            // Cute round side ears
             drawCircle(color = color, radius = 4f, center = Offset(w * 0.15f, h * 0.55f))
             drawCircle(color = color, radius = 4f, center = Offset(w * 0.85f, h * 0.55f))
         }
 
-        // Head box
         drawRoundRect(
             color = color,
             topLeft = Offset(w * 0.2f, h * 0.25f),
@@ -1711,10 +1809,8 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
             style = Stroke(width = strokeW)
         )
         
-        // Eyes and mouth details
         when (difficulty) {
             "EASY" -> {
-                // Happy curved eyes
                 drawArc(
                     color = color,
                     startAngle = 180f,
@@ -1733,7 +1829,6 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
                     size = androidx.compose.ui.geometry.Size(w * 0.12f, h * 0.1f),
                     style = Stroke(width = strokeW * 1.5f, cap = StrokeCap.Round)
                 )
-                // Happy smile
                 drawArc(
                     color = color,
                     startAngle = 0f,
@@ -1745,10 +1840,8 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
                 )
             }
             "MEDIUM" -> {
-                // Round solid circular eyes
                 drawCircle(color = color, radius = 5f, center = Offset(w * 0.38f, h * 0.45f))
                 drawCircle(color = color, radius = 5f, center = Offset(w * 0.62f, h * 0.45f))
-                // Straight mouth
                 drawLine(
                     color = color,
                     start = Offset(w * 0.42f, h * 0.62f),
@@ -1758,7 +1851,6 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
                 )
             }
             "HARD" -> {
-                // Slanted angry eyes
                 drawLine(
                     color = color,
                     start = Offset(w * 0.3f, h * 0.42f),
@@ -1773,10 +1865,8 @@ fun RobotFaceIcon(difficulty: String, color: Color) {
                     strokeWidth = strokeW * 2f,
                     cap = StrokeCap.Round
                 )
-                // Small red glowing circular iris inside
                 drawCircle(color = color, radius = 3f, center = Offset(w * 0.37f, h * 0.47f))
                 drawCircle(color = color, radius = 3f, center = Offset(w * 0.63f, h * 0.47f))
-                // Frown mouth
                 drawArc(
                     color = color,
                     startAngle = 180f,
@@ -1797,7 +1887,6 @@ fun CustomNeonArrow(color: Color) {
         val w = size.width
         val h = size.height
         val stroke = 4f
-        // Points towards left in RTL layout (which is forward in Arabic reading)
         drawLine(
             color = color,
             start = Offset(w * 0.15f, h * 0.5f),
@@ -1829,34 +1918,21 @@ fun RobotDifficultyCard(
     description: String,
     color: Color,
     isSelected: Boolean,
+    theme: String,
     onClick: () -> Unit
 ) {
-    val infiniteTransition = rememberInfiniteTransition(label = "borderGlow")
-    val borderAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.5f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "alpha"
-    )
+    val isLight = theme == "LIGHT"
+    val cardBg = if (isSelected) color.copy(alpha = 0.08f) else (if (isLight) Color.White else Color(0xFF101426))
+    val cardBorder = if (isSelected) color else (if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B))
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 6.dp)
-            .clickable {
-                onClick()
-            },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) color.copy(alpha = 0.08f) else Color(0xFF101426)
-        ),
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = cardBg),
         shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(
-            width = if (isSelected) 2.dp else 1.dp,
-            color = if (isSelected) color.copy(alpha = borderAlpha) else Color(0xFF1E293B)
-        )
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, cardBorder)
     ) {
         Row(
             modifier = Modifier
@@ -1865,10 +1941,8 @@ fun RobotDifficultyCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Robot Face on left
             RobotFaceIcon(difficulty = difficulty, color = color)
 
-            // Info in middle
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
@@ -1879,22 +1953,21 @@ fun RobotDifficultyCard(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
-                    color = Color(0xFF94A3B8),
+                    color = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
             }
 
-            // Arrow circle on right
             Box(
                 modifier = Modifier
                     .size(36.dp)
                     .background(
-                        if (isSelected) color.copy(alpha = 0.15f) else Color(0xFF1B223C),
+                        if (isSelected) color.copy(alpha = 0.15f) else (if (isLight) Color(0xFFCBD5E1) else Color(0xFF1B223C)),
                         CircleShape
                     )
                     .border(
-                        BorderStroke(1.dp, if (isSelected) color else Color(0xFF2E3B5E)),
+                        BorderStroke(1.dp, if (isSelected) color else (if (isLight) Color(0xFF94A3B8) else Color(0xFF2E3B5E))),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -1906,7 +1979,8 @@ fun RobotDifficultyCard(
 }
 
 @Composable
-fun NeonPedestalLogo() {
+fun NeonPedestalLogo(theme: String) {
+    val isLight = theme == "LIGHT"
     val infiniteTransition = rememberInfiniteTransition(label = "pedestalGlow")
     val bounceY by infiniteTransition.animateFloat(
         initialValue = -5f,
@@ -1934,34 +2008,33 @@ fun NeonPedestalLogo() {
             .padding(vertical = 12.dp)
     ) {
         Box(
-            modifier = Modifier
-                .size(width = 240.dp, height = 150.dp),
+            modifier = Modifier.size(width = 240.dp, height = 150.dp),
             contentAlignment = Alignment.Center
         ) {
-            // Background glowing eclipse light
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
                 
-                // Draw a beautiful soft radial gradient glow behind
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.18f * glowAlpha), Color.Transparent),
+                if (!isLight) {
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFF00E5FF).copy(alpha = 0.18f * glowAlpha), Color.Transparent),
+                            center = Offset(w * 0.35f, h * 0.5f),
+                            radius = w * 0.4f
+                        ),
                         center = Offset(w * 0.35f, h * 0.5f),
                         radius = w * 0.4f
-                    ),
-                    center = Offset(w * 0.35f, h * 0.5f),
-                    radius = w * 0.4f
-                )
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFFFF2D55).copy(alpha = 0.18f * glowAlpha), Color.Transparent),
+                    )
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFFFF2D55).copy(alpha = 0.18f * glowAlpha), Color.Transparent),
+                            center = Offset(w * 0.65f, h * 0.5f),
+                            radius = w * 0.4f
+                        ),
                         center = Offset(w * 0.65f, h * 0.5f),
                         radius = w * 0.4f
-                    ),
-                    center = Offset(w * 0.65f, h * 0.5f),
-                    radius = w * 0.4f
-                )
+                    )
+                }
             }
 
             // The Pedestal Platform
@@ -1974,42 +2047,30 @@ fun NeonPedestalLogo() {
                 val w = size.width
                 val h = size.height
                 
-                // Draw bottom shadow/glow of pedestal
                 drawOval(
-                    color = Color(0xFF00E5FF).copy(alpha = 0.25f * glowAlpha),
+                    color = (if (isLight) Color(0xFFCBD5E1) else Color(0xFF00E5FF)).copy(alpha = 0.25f * glowAlpha),
                     topLeft = Offset(w * 0.1f, h * 0.4f),
                     size = androidx.compose.ui.geometry.Size(w * 0.8f, h * 0.5f)
                 )
-                
-                // Draw cylinder base layers for 3D look
                 drawOval(
-                    color = Color(0xFF1E293B),
+                    color = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B),
                     topLeft = Offset(w * 0.12f, h * 0.35f),
                     size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.45f)
                 )
-                
-                // Draw main rim with cyan glow
                 drawOval(
-                    color = Color(0xFF0D1527),
+                    color = if (isLight) Color.White else Color(0xFF0D1527),
                     topLeft = Offset(w * 0.12f, h * 0.3f),
                     size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.45f)
                 )
                 drawOval(
-                    color = Color(0xFF00E5FF),
+                    color = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF),
                     topLeft = Offset(w * 0.12f, h * 0.3f),
                     size = androidx.compose.ui.geometry.Size(w * 0.76f, h * 0.45f),
                     style = Stroke(width = 3f)
                 )
-                
-                // Top platform face
-                drawOval(
-                    color = Color(0xFF121829),
-                    topLeft = Offset(w * 0.14f, h * 0.32f),
-                    size = androidx.compose.ui.geometry.Size(w * 0.72f, h * 0.41f)
-                )
             }
 
-            // Floating X and O
+            // Floating X and O symbols
             Row(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -2032,9 +2093,17 @@ fun VictoryOverlay(
     scoreX: Int,
     scoreO: Int,
     scoreDraws: Int,
+    theme: String,
     onPlayAgain: () -> Unit,
     onMainMenu: () -> Unit
 ) {
+    val isLight = theme == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val cardBg = if (isLight) Color.White else Color(0xFF121829)
+    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+
     val infiniteTransition = rememberInfiniteTransition(label = "victoryGlow")
     val glowScale by infiniteTransition.animateFloat(
         initialValue = 0.95f,
@@ -2049,11 +2118,10 @@ fun VictoryOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF090C15).copy(alpha = 0.96f))
-            .clickable(enabled = false) {}, // block clicks to background
+            .background((if (isLight) Color(0xFFF1F5F9) else Color(0xFF090C15)).copy(alpha = 0.96f))
+            .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
-        // Star & Confetti particles background
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
@@ -2095,9 +2163,9 @@ fun VictoryOverlay(
 
             val titleText = when {
                 winner != null -> {
-                    if (gameMode == "VS_BOT" && winner == "O") "البوت انتصر!" else "تهانينا! فوز ساحق"
+                    if (gameMode == "VS_BOT" && winner == "O") Localizer.get("win_bot") else Localizer.get("win_congrats")
                 }
-                else -> "تعادل عادل!"
+                else -> Localizer.get("draw_title")
             }
             val titleColor = when {
                 winner == "X" -> Color(0xFF00E5FF)
@@ -2115,17 +2183,16 @@ fun VictoryOverlay(
             )
 
             Text(
-                text = if (winner != null) "لقد انتهت الجولة بانتصار أسطوري!" else "كانت معركة حامية بين الطرفين!",
+                text = if (winner != null) Localizer.get("win_desc") else Localizer.get("draw_desc"),
                 fontSize = 14.sp,
-                color = Color(0xFF94A3B8),
+                color = textColorSecondary,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Giant Winning Symbol with Laurel Wreath
+            // Giant Laurel wreath and symbol in center
             Box(
-                modifier = Modifier
-                    .size(180.dp),
+                modifier = Modifier.size(180.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -2133,7 +2200,6 @@ fun VictoryOverlay(
                     val h = size.height
                     val wreathColor = titleColor.copy(alpha = 0.4f)
                     
-                    // Left arc
                     drawArc(
                         color = wreathColor,
                         startAngle = 100f,
@@ -2144,7 +2210,6 @@ fun VictoryOverlay(
                         style = Stroke(width = 4f, cap = StrokeCap.Round)
                     )
                     
-                    // Right arc
                     drawArc(
                         color = wreathColor,
                         startAngle = -80f,
@@ -2155,7 +2220,6 @@ fun VictoryOverlay(
                         style = Stroke(width = 4f, cap = StrokeCap.Round)
                     )
                     
-                    // Leaf ovals
                     val leafCount = 6
                     for (i in 0 until leafCount) {
                         val angleLeft = 110f + i * 22f
@@ -2173,10 +2237,7 @@ fun VictoryOverlay(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .size(90.dp * glowScale)
-                ) {
+                Box(modifier = Modifier.size(90.dp * glowScale)) {
                     if (winner == "X") {
                         XSymbol(modifier = Modifier.fillMaxSize(), color = Color(0xFF00E5FF))
                     } else if (winner == "O") {
@@ -2209,16 +2270,16 @@ fun VictoryOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF121829)),
-                border = BorderStroke(1.dp, Color(0xFF1E293B))
+                colors = CardDefaults.cardColors(containerColor = cardBg),
+                border = BorderStroke(1.dp, cardBorder)
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = "تفاصيل جولة المعركة",
-                        color = Color(0xFF94A3B8),
+                        text = Localizer.get("round_details"),
+                        color = textColorSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -2228,49 +2289,45 @@ fun VictoryOverlay(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceAround
                     ) {
-                        ScoreDetailItem(label = "اللاعب X", score = scoreX, color = Color(0xFF00E5FF))
-                        ScoreDetailItem(label = "التعادلات", score = scoreDraws, color = Color(0xFF94A3B8))
-                        ScoreDetailItem(label = "اللاعب O", score = scoreO, color = Color(0xFFFF2D55))
+                        ScoreDetailItem(label = Localizer.get("player_x"), score = scoreX, color = Color(0xFF00E5FF))
+                        ScoreDetailItem(label = Localizer.get("stats_draws"), score = scoreDraws, color = textColorSecondary)
+                        ScoreDetailItem(label = Localizer.get("player_o"), score = scoreO, color = Color(0xFFFF2D55))
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons
+            // Buttons
             Button(
-                onClick = {
-                    onPlayAgain()
-                },
+                onClick = onPlayAgain,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(26.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF00E5FF),
-                    contentColor = Color(0xFF090C15)
+                    containerColor = accentColor,
+                    contentColor = if (isLight) Color.White else Color(0xFF090C15)
                 )
             ) {
-                Text(text = "العب مجدداً", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(text = Localizer.get("play_again"), fontSize = 16.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
             Button(
-                onClick = {
-                    onMainMenu()
-                },
+                onClick = onMainMenu,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
                 shape = RoundedCornerShape(26.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color.White
+                    contentColor = textColorPrimary
                 ),
-                border = BorderStroke(1.dp, Color(0xFF1E293B))
+                border = BorderStroke(1.dp, cardBorder)
             ) {
-                Text(text = "القائمة الرئيسية", fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Text(text = Localizer.get("main_menu"), fontSize = 16.sp, fontWeight = FontWeight.Medium)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -2286,4 +2343,3 @@ fun ScoreDetailItem(label: String, score: Int, color: Color) {
         Text(text = score.toString(), color = color, fontSize = 22.sp, fontWeight = FontWeight.Black)
     }
 }
-

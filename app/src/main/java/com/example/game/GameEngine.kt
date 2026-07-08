@@ -67,14 +67,14 @@ object GameEngine {
                 emptyIndices.random()
             }
             "HARD" -> {
-                // Hard: Minimax (Perfect AI, impossible to beat)
-                getBestMoveMinimax(board, botSymbol, playerSymbol)
+                // Hard: Minimax + Alpha-Beta (Perfect AI, impossible to beat)
+                getBestMoveAlphaBeta(board, botSymbol, playerSymbol)
             }
             else -> emptyIndices.random()
         }
     }
 
-    private fun getBestMoveMinimax(board: List<String?>, botSymbol: String, playerSymbol: String): Int {
+    private fun getBestMoveAlphaBeta(board: List<String?>, botSymbol: String, playerSymbol: String): Int {
         var bestScore = Int.MIN_VALUE
         var bestMove = -1
 
@@ -82,7 +82,7 @@ object GameEngine {
             if (board[i] == null) {
                 val nextBoard = board.toMutableList()
                 nextBoard[i] = botSymbol
-                val score = minimax(nextBoard, 0, false, botSymbol, playerSymbol)
+                val score = minimaxAlphaBeta(nextBoard, 0, false, Int.MIN_VALUE, Int.MAX_VALUE, botSymbol, playerSymbol)
                 if (score > bestScore) {
                     bestScore = score
                     bestMove = i
@@ -92,10 +92,12 @@ object GameEngine {
         return if (bestMove != -1) bestMove else board.indices.first { board[it] == null }
     }
 
-    private fun minimax(
+    private fun minimaxAlphaBeta(
         board: List<String?>,
         depth: Int,
         isMaximizing: Boolean,
+        alpha: Int,
+        beta: Int,
         botSymbol: String,
         playerSymbol: String
     ): Int {
@@ -104,14 +106,21 @@ object GameEngine {
         if (winner == playerSymbol) return depth - 10
         if (isBoardFull(board)) return 0
 
+        var currentAlpha = alpha
+        var currentBeta = beta
+
         if (isMaximizing) {
             var bestScore = Int.MIN_VALUE
             for (i in board.indices) {
                 if (board[i] == null) {
                     val nextBoard = board.toMutableList()
                     nextBoard[i] = botSymbol
-                    val score = minimax(nextBoard, depth + 1, false, botSymbol, playerSymbol)
+                    val score = minimaxAlphaBeta(nextBoard, depth + 1, false, currentAlpha, currentBeta, botSymbol, playerSymbol)
                     bestScore = maxOf(bestScore, score)
+                    currentAlpha = maxOf(currentAlpha, bestScore)
+                    if (currentBeta <= currentAlpha) {
+                        break // Beta cut-off
+                    }
                 }
             }
             return bestScore
@@ -121,8 +130,12 @@ object GameEngine {
                 if (board[i] == null) {
                     val nextBoard = board.toMutableList()
                     nextBoard[i] = playerSymbol
-                    val score = minimax(nextBoard, depth + 1, true, botSymbol, playerSymbol)
+                    val score = minimaxAlphaBeta(nextBoard, depth + 1, true, currentAlpha, currentBeta, botSymbol, playerSymbol)
                     bestScore = minOf(bestScore, score)
+                    currentBeta = minOf(currentBeta, bestScore)
+                    if (currentBeta <= currentAlpha) {
+                        break // Alpha cut-off
+                    }
                 }
             }
             return bestScore

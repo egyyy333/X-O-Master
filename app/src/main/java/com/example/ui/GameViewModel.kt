@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -17,10 +18,102 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+// ==========================================
+// BILINGUAL TRANSLATION SYSTEM
+// ==========================================
+object Localizer {
+    var currentLanguage = "AR" // "AR" or "EN"
+
+    fun get(key: String): String {
+        val isAr = currentLanguage == "AR"
+        return when (key) {
+            "app_name" -> if (isAr) "إكس أو المحترف" else "XO Master Pro"
+            "app_subtitle" -> if (isAr) "تحدّ الذكاء الاصطناعي بمستويات مذهلة أو العب مع أصدقائك بنقرة سريعة" else "Challenge elite AI or battle friends with style"
+            "mode_title" -> if (isAr) "١. نمط اللعب" else "1. Game Mode"
+            "mode_bot" -> if (isAr) "ضد الكمبيوتر (البوت)" else "VS Computer (Bot)"
+            "mode_friend" -> if (isAr) "ضد لاعب (ثنائي)" else "Local Multiplayer"
+            "difficulty_title" -> if (isAr) "٢. اختر مستوى الصعوبة للذكاء الاصطناعي" else "2. Select AI Difficulty Level"
+            "difficulty_easy" -> if (isAr) "مستوى سهل 🤖" else "Easy Mode 🤖"
+            "difficulty_easy_desc" -> if (isAr) "الكمبيوتر يرتكب أخطاء عشوائية وهو مناسب للتدريب والتعلم السريع." else "The computer makes random mistakes, great for learning."
+            "difficulty_medium" -> if (isAr) "مستوى متوسط 🧠" else "Medium Mode 🧠"
+            "difficulty_medium_desc" -> if (isAr) "الكمبيوتر يلعب بنقلات أذكى ويبادر بالدفاع المنظم والذكي." else "The computer plays smarter, blocking wins and defending well."
+            "difficulty_hard" -> if (isAr) "مستوى مستحيل 🔥" else "Impossible Mode 🔥"
+            "difficulty_hard_desc" -> if (isAr) "الذكاء الاصطناعي الكامل (مينيمكس + ألفا بيتا). لا يخطئ أبداً، جرب هزيمته!" else "Ultimate AI (Minimax + Alpha-Beta). Unbeatable!"
+            "symbol_title" -> if (isAr) "٣. اختر رمزك الأساسي" else "3. Choose Your Primary Symbol"
+            "start_battle" -> if (isAr) "ابدأ المعركة الحماسية" else "Launch Epic Battle"
+            "tab_home" -> if (isAr) "الرئيسية" else "Home"
+            "tab_game" -> if (isAr) "الملعب" else "Arena"
+            "tab_stats" -> if (isAr) "الإحصائيات" else "Stats"
+            "tab_settings" -> if (isAr) "الإعدادات" else "Settings"
+            "player_x" -> if (isAr) "اللاعب X" else "Player X"
+            "player_o" -> if (isAr) "اللاعب O" else "Player O"
+            "bot_o" -> if (isAr) "البوت O" else "Bot O"
+            "turn_your" -> if (isAr) "دورك لتباغت الخصم!" else "Your turn to make a move!"
+            "turn_bot" -> if (isAr) "جاري تفكير البوت..." else "Bot is calculating..."
+            "turn_player" -> if (isAr) "دور اللاعب %s الآن" else "Player %s's turn"
+            "game_over" -> if (isAr) "الجولة انتهت!" else "Round Over!"
+            "re_round" -> if (isAr) "إعادة جولة" else "Reset Round"
+            "undo" -> if (isAr) "تراجع" else "Undo"
+            "hint" -> if (isAr) "تلميح" else "Hint"
+            "stats_title" -> if (isAr) "سجل الانتصارات والإنجازات" else "Battle Records & Achievements"
+            "stats_subtitle" -> if (isAr) "لوحة صدارة المعارك وسجل المواجهات السابقة" else "Battle leaderboard and game history log"
+            "stats_played" -> if (isAr) "المباريات" else "Played"
+            "stats_wins" -> if (isAr) "انتصارات" else "Wins"
+            "stats_draws" -> if (isAr) "تعادلات" else "Draws"
+            "stats_losses" -> if (isAr) "خسائر" else "Losses"
+            "stats_win_rate" -> if (isAr) "نسبة الفوز" else "Win Rate"
+            "stats_streak" -> if (isAr) "أعلى سلسلة" else "Max Streak"
+            "history_log" -> if (isAr) "سجل المعارك الأخير" else "Recent Battle Log"
+            "no_records" -> if (isAr) "لا توجد سجلات معارك حتى الآن! ابدأ اللعب لتسجيل نتائجك." else "No battle records yet! Start playing to record your battles."
+            "clear_history" -> if (isAr) "مسح السجل" else "Clear Log"
+            "settings_sound" -> if (isAr) "صوت المؤثرات" else "Sound Effects"
+            "settings_sound_desc" -> if (isAr) "تفعيل النغمات السيمفونية التناظرية عند اللعب" else "Enable analog synth sonifications on actions"
+            "settings_haptic" -> if (isAr) "الاهتزاز اللمسي" else "Haptic Feedback"
+            "settings_haptic_desc" -> if (isAr) "اهتزاز تفاعلي عند الضغط واللعب" else "Interactive tactile rumble on clicks"
+            "settings_theme" -> if (isAr) "السمة والمظهر" else "Theme & Aesthetics"
+            "settings_theme_desc" -> if (isAr) "تخصيص ثيم وألوان واجهة المستخدم" else "Customize interface appearance and colors"
+            "settings_theme_fantasy" -> if (isAr) "كوني خيالي 🌌" else "Fantasy Cosmic 🌌"
+            "settings_theme_dark" -> if (isAr) "داكن احترافي 🖤" else "Pro Dark 🖤"
+            "settings_theme_light" -> if (isAr) "مضيء عصري 🤍" else "Modern Light 🤍"
+            "settings_lang" -> if (isAr) "لغة التطبيق" else "App Language"
+            "settings_reset" -> if (isAr) "مسح جميع البيانات" else "Wipe All Data"
+            "settings_reset_desc" -> if (isAr) "حذف السجلات، الإحصائيات، والإنجازات نهائياً" else "Delete all history, stats, and achievements"
+            "confirm_reset_title" -> if (isAr) "هل أنت متأكد؟" else "Are you sure?"
+            "confirm_reset_desc" -> if (isAr) "هذا الإجراء سيقوم بحذف جميع البيانات بشكل نهائي ولا يمكن التراجع عنه!" else "This action will permanently delete all your data and cannot be undone!"
+            "cancel" -> if (isAr) "إلغاء" else "Cancel"
+            "confirm" -> if (isAr) "تأكيد" else "Confirm"
+            "win_congrats" -> if (isAr) "تهانينا! فوز ساحق" else "Victory! Spectacular Win"
+            "win_bot" -> if (isAr) "البوت انتصر!" else "AI Bot Triumphed!"
+            "draw_title" -> if (isAr) "تعادل عادل!" else "Fair Draw!"
+            "win_desc" -> if (isAr) "لقد انتهت الجولة بانتصار أسطوري!" else "The round ended with a legendary win!"
+            "draw_desc" -> if (isAr) "كانت معركة حامية بين الطرفين!" else "It was a fierce battle on both sides!"
+            "round_details" -> if (isAr) "تفاصيل جولة المعركة" else "Battle Round Details"
+            "play_again" -> if (isAr) "العب مجدداً" else "Play Again"
+            "main_menu" -> if (isAr) "القائمة الرئيسية" else "Main Menu"
+            "achievements" -> if (isAr) "نظام الإنجازات والأوسمة" else "Achievements & Badges"
+            "ach_first_win" -> if (isAr) "البداية الواعدة 🌟" else "Promising Start 🌟"
+            "ach_first_win_desc" -> if (isAr) "حقق أول فوز لك ضد البوت أو صديق" else "Achieve your first win ever"
+            "ach_hard_draw" -> if (isAr) "قاهر المستحيل 🏆" else "Impossible Conqueror 🏆"
+            "ach_hard_draw_desc" -> if (isAr) "حقق فوزاً أو تعادلاً ضد البوت المستحيل" else "Achieve a win or draw against Impossible Bot"
+            "ach_streak" -> if (isAr) "العقل المدبر 🔥" else "Mastermind 🔥"
+            "ach_streak_desc" -> if (isAr) "حقق سلسلة فوز متتالية من 3 انتصارات" else "Achieve a 3-match win streak"
+            "ach_hint" -> if (isAr) "مكتشف الأسرار 💡" else "Secret Explorer 💡"
+            "ach_hint_desc" -> if (isAr) "استخدم جميع التلميحات الثلاثة في جولة واحدة" else "Use all 3 hints in a single round"
+            "ach_legend" -> if (isAr) "اللاعب الأسطوري 👑" else "Legendary Player 👑"
+            "ach_legend_desc" -> if (isAr) "خض 10 معارك حامية الوطيس" else "Fight 10 intense battles in total"
+            "unlocked" -> if (isAr) "مفتوح" else "Unlocked"
+            "locked" -> if (isAr) "مغلق" else "Locked"
+            else -> key
+        }
+    }
+}
+
 class GameViewModel(
     application: Application,
     private val repository: GameRecordRepository
 ) : AndroidViewModel(application) {
+
+    private val prefs = application.getSharedPreferences("xo_master_prefs", Context.MODE_PRIVATE)
 
     // Board state: 9 cells, null = empty, "X" or "O"
     private val _board = MutableStateFlow(List<String?>(9) { null })
@@ -66,6 +159,22 @@ class GameViewModel(
     private val _scoreDraws = MutableStateFlow(0)
     val scoreDraws: StateFlow<Int> = _scoreDraws.asStateFlow()
 
+    // Settings
+    private val _isSoundEnabled = MutableStateFlow(prefs.getBoolean("is_sound_enabled", true))
+    val isSoundEnabled: StateFlow<Boolean> = _isSoundEnabled.asStateFlow()
+
+    private val _isHapticEnabled = MutableStateFlow(prefs.getBoolean("is_haptic_enabled", true))
+    val isHapticEnabled: StateFlow<Boolean> = _isHapticEnabled.asStateFlow()
+
+    private val _appTheme = MutableStateFlow(prefs.getString("app_theme", "COSMIC_FANTASY") ?: "COSMIC_FANTASY")
+    val appTheme: StateFlow<String> = _appTheme.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow(prefs.getString("app_language", "AR") ?: "AR")
+    val appLanguage: StateFlow<String> = _appLanguage.asStateFlow()
+
+    // Track if all hints are used in a single game for the achievement
+    private var hintsUsedInCurrentGame = 0
+
     // Game record history retrieved reactively from Room DB
     val history: StateFlow<List<GameRecord>> = repository.allRecords
         .stateIn(
@@ -90,9 +199,117 @@ class GameViewModel(
         get() = if (_playerSymbol.value == "X") "O" else "X"
 
     init {
-        resetGame()
+        // Configure singleton players according to loaded preferences
+        GameSoundPlayer.isSoundEnabled = _isSoundEnabled.value
+        Localizer.currentLanguage = _appLanguage.value
+
+        // Auto-save: check if there is a saved board state, if so, load it
+        val savedBoardStr = prefs.getString("saved_board", null)
+        if (savedBoardStr != null && savedBoardStr.isNotEmpty()) {
+            loadGameState()
+        } else {
+            resetGame()
+        }
     }
 
+    // ==========================================
+    // SETTINGS SETTERS
+    // ==========================================
+    fun setSoundEnabled(enabled: Boolean) {
+        _isSoundEnabled.value = enabled
+        GameSoundPlayer.isSoundEnabled = enabled
+        prefs.edit().putBoolean("is_sound_enabled", enabled).apply()
+    }
+
+    fun setHapticEnabled(enabled: Boolean) {
+        _isHapticEnabled.value = enabled
+        prefs.edit().putBoolean("is_haptic_enabled", enabled).apply()
+    }
+
+    fun setAppTheme(theme: String) {
+        _appTheme.value = theme
+        prefs.edit().putString("app_theme", theme).apply()
+    }
+
+    fun setAppLanguage(language: String) {
+        _appLanguage.value = language
+        Localizer.currentLanguage = language
+        prefs.edit().putString("app_language", language).apply()
+    }
+
+    // ==========================================
+    // AUTO-SAVE LOGIC
+    // ==========================================
+    private fun saveGameState() {
+        val editor = prefs.edit()
+        
+        // Serialize board list to string "X,,O,X,,O,,,"
+        val boardStr = _board.value.joinToString(",") { it ?: "" }
+        editor.putString("saved_board", boardStr)
+        editor.putString("saved_current_turn", _currentTurn.value)
+        editor.putString("saved_winner", _winner.value ?: "")
+        editor.putString("saved_winning_line", _winningLine.value?.joinToString(",") ?: "")
+        editor.putBoolean("saved_is_game_over", _isGameOver.value)
+        editor.putString("saved_game_mode", _gameMode.value)
+        editor.putString("saved_bot_difficulty", _botDifficulty.value)
+        editor.putString("saved_player_symbol", _playerSymbol.value)
+        editor.putInt("saved_hint_count", _hintCount.value)
+        editor.putInt("saved_hints_used", hintsUsedInCurrentGame)
+        
+        // Save temporary round scores
+        editor.putInt("saved_score_x", _scoreX.value)
+        editor.putInt("saved_score_o", _scoreO.value)
+        editor.putInt("saved_score_draws", _scoreDraws.value)
+        
+        editor.apply()
+    }
+
+    private fun loadGameState() {
+        try {
+            val savedBoardStr = prefs.getString("saved_board", "") ?: ""
+            if (savedBoardStr.isNotEmpty()) {
+                val boardList = savedBoardStr.split(",").map { if (it.isEmpty()) null else it }
+                if (boardList.size == 9) {
+                    _board.value = boardList
+                    _currentTurn.value = prefs.getString("saved_current_turn", "X") ?: "X"
+                    val winnerStr = prefs.getString("saved_winner", "") ?: ""
+                    _winner.value = if (winnerStr.isEmpty()) null else winnerStr
+                    
+                    val winningLineStr = prefs.getString("saved_winning_line", "") ?: ""
+                    _winningLine.value = if (winningLineStr.isEmpty()) null else winningLineStr.split(",").map { it.toInt() }
+                    
+                    _isGameOver.value = prefs.getBoolean("saved_is_game_over", false)
+                    _gameMode.value = prefs.getString("saved_game_mode", "VS_BOT") ?: "VS_BOT"
+                    _botDifficulty.value = prefs.getString("saved_bot_difficulty", "MEDIUM") ?: "MEDIUM"
+                    _playerSymbol.value = prefs.getString("saved_player_symbol", "X") ?: "X"
+                    _hintCount.value = prefs.getInt("saved_hint_count", 3)
+                    hintsUsedInCurrentGame = prefs.getInt("saved_hints_used", 0)
+                    
+                    _scoreX.value = prefs.getInt("saved_score_x", 0)
+                    _scoreO.value = prefs.getInt("saved_score_o", 0)
+                    _scoreDraws.value = prefs.getInt("saved_score_draws", 0)
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            resetGame()
+        }
+    }
+
+    private fun clearSavedGame() {
+        prefs.edit().apply {
+            remove("saved_board")
+            remove("saved_current_turn")
+            remove("saved_winner")
+            remove("saved_winning_line")
+            remove("saved_is_game_over")
+            remove("saved_hints_used")
+        }.apply()
+    }
+
+    // ==========================================
+    // GAME CORE ACTION COMMANDS
+    // ==========================================
     fun setGameMode(mode: String) {
         if (_gameMode.value != mode) {
             _gameMode.value = mode
@@ -121,6 +338,7 @@ class GameViewModel(
         _scoreX.value = 0
         _scoreO.value = 0
         _scoreDraws.value = 0
+        saveGameState()
     }
 
     fun resetGame() {
@@ -136,6 +354,10 @@ class GameViewModel(
         turnHistory.clear()
         _highlightedCell.value = null
         _hintCount.value = 3
+        hintsUsedInCurrentGame = 0
+
+        clearSavedGame()
+        saveGameState()
 
         // If Bot's turn is first in bot mode (Bot is X), let bot play!
         if (_gameMode.value == "VS_BOT" && botSymbol == "X") {
@@ -184,6 +406,7 @@ class GameViewModel(
 
         // Switch turns
         _currentTurn.value = if (activeSymbol == "X") "O" else "X"
+        saveGameState()
 
         // If next is bot's turn, trigger bot play
         if (_gameMode.value == "VS_BOT" && _currentTurn.value == botSymbol) {
@@ -241,6 +464,7 @@ class GameViewModel(
                 _currentTurn.value = _playerSymbol.value
             }
             _isBotThinking.value = false
+            saveGameState()
         }
     }
 
@@ -275,6 +499,9 @@ class GameViewModel(
             )
             repository.insertRecord(record)
         }
+
+        clearSavedGame()
+        saveGameState()
     }
 
     private fun handleTie() {
@@ -292,11 +519,31 @@ class GameViewModel(
             )
             repository.insertRecord(record)
         }
+
+        clearSavedGame()
+        saveGameState()
     }
 
     fun clearHistory() {
         viewModelScope.launch {
             repository.clearHistory()
+        }
+    }
+
+    fun wipeAllData() {
+        viewModelScope.launch {
+            repository.clearHistory()
+            resetScores()
+            resetGame()
+            
+            // Restore default preferences
+            setSoundEnabled(true)
+            setHapticEnabled(true)
+            setAppTheme("COSMIC_FANTASY")
+            setAppLanguage("AR")
+            hintsUsedInCurrentGame = 0
+            
+            clearSavedGame()
         }
     }
 
@@ -334,6 +581,7 @@ class GameViewModel(
         }
         
         _highlightedCell.value = null
+        saveGameState()
     }
 
     fun requestHint() {
@@ -341,6 +589,7 @@ class GameViewModel(
 
         GameSoundPlayer.playClick()
         _hintCount.value -= 1
+        hintsUsedInCurrentGame += 1
 
         val activeSymbol = _currentTurn.value
         val opponentSymbol = if (activeSymbol == "X") "O" else "X"
@@ -354,6 +603,7 @@ class GameViewModel(
 
         if (bestMove != -1) {
             _highlightedCell.value = bestMove
+            saveGameState()
             
             viewModelScope.launch {
                 delay(2500)
@@ -363,6 +613,9 @@ class GameViewModel(
             }
         }
     }
+
+    // Return the status of used hints in the current round
+    fun didUseAllThreeHints(): Boolean = hintsUsedInCurrentGame >= 3
 }
 
 class GameViewModelFactory(

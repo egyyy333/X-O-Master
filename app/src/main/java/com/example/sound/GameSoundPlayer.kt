@@ -13,6 +13,8 @@ import kotlin.math.exp
 object GameSoundPlayer {
     private val scope = CoroutineScope(Dispatchers.Default)
 
+    var isSoundEnabled: Boolean = true
+
     /**
      * Synthesizes and plays a rich electronic synthesizer tone with harmonics and a pluck envelope.
      *
@@ -21,6 +23,7 @@ object GameSoundPlayer {
      * @param type "PLUCK" (bell/synth), "WARM" (softer bubble), "SWEEP" (retro pitch bend down), "CHIME" (extra harmonics), "BOOP" (bend up)
      */
     fun playTone(frequency: Double, durationMs: Int, type: String = "PLUCK") {
+        if (!isSoundEnabled) return
         scope.launch {
             try {
                 val sampleRate = 44100
