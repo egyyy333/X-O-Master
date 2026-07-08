@@ -1,0 +1,6 @@
+{
+  "name": "X-O Master",
+  "description": "لعبة إكس أو (Tic-Tac-Toe) حديثة واحترافية بمؤثرات صوتية ومستويات ذكاء اصطناعي متعددة وإحصائيات لعب كاملة.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
