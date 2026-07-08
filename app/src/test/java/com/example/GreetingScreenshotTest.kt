@@ -21,7 +21,7 @@ class GreetingScreenshotTest {
 
   @Test
   fun greeting_screenshot() {
-    composeTestRule.setContent { MyApplicationTheme { NeonPedestalLogo() } }
+    composeTestRule.setContent { MyApplicationTheme { NeonPedestalLogo(theme = "DARK") } }
 
     composeTestRule.onRoot().captureRoboImage(filePath = "src/test/screenshots/greeting.png")
   }
