@@ -39,6 +39,12 @@ jobs:
             cp .env.example .env
           fi
 
+      - name: Fix and Verify Gradle Wrapper JAR
+        run: |
+          mkdir -p gradle/wrapper
+          echo "Downloading clean gradle-wrapper.jar to prevent binary corruption on checkout..."
+          curl -Lo gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v9.3.1/gradle/wrapper/gradle-wrapper.jar
+
       - name: Grant Execute Permission to gradlew
         run: chmod +x gradlew
 
