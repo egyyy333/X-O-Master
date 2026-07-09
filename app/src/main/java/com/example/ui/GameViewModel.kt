@@ -27,11 +27,12 @@ object Localizer {
     fun get(key: String): String {
         val isAr = currentLanguage == "AR"
         return when (key) {
-            "app_name" -> if (isAr) "إكس أو المحترف" else "XO Master Pro"
+            "app_name" -> "X-O Master"
             "app_subtitle" -> if (isAr) "تحدّ الذكاء الاصطناعي بمستويات مذهلة أو العب مع أصدقائك بنقرة سريعة" else "Challenge elite AI or battle friends with style"
             "mode_title" -> if (isAr) "١. نمط اللعب" else "1. Game Mode"
             "mode_bot" -> if (isAr) "ضد الكمبيوتر (البوت)" else "VS Computer (Bot)"
             "mode_friend" -> if (isAr) "ضد لاعب (ثنائي)" else "Local Multiplayer"
+            "mode_tournament" -> if (isAr) "البطولة الأسطورية 🏆" else "Epic Tournament 🏆"
             "difficulty_title" -> if (isAr) "٢. اختر مستوى الصعوبة للذكاء الاصطناعي" else "2. Select AI Difficulty Level"
             "difficulty_easy" -> if (isAr) "مستوى سهل 🤖" else "Easy Mode 🤖"
             "difficulty_easy_desc" -> if (isAr) "الكمبيوتر يرتكب أخطاء عشوائية وهو مناسب للتدريب والتعلم السريع." else "The computer makes random mistakes, great for learning."
@@ -108,12 +109,150 @@ object Localizer {
     }
 }
 
+// ==========================================
+// TOURNAMENT MATCH MODELS & SERIALIZERS
+// ==========================================
+data class TournamentMatch(
+    val player1Idx: Int,
+    val player2Idx: Int,
+    var winnerIdx: Int = -1, // -1 = pending, 0 = Player1, 1 = Player2, 2 = Draw
+    var score1: Int = 0,
+    var score2: Int = 0,
+    var p1Time: Int = 0,
+    var p2Time: Int = 0,
+    var p1Hints: Int = 0,
+    var p2Hints: Int = 0,
+    var r1Time: Int = 0,
+    var r2Time: Int = 0,
+    var r1Clicks: Int = 0,
+    var r2Clicks: Int = 0,
+    var r1Hints: Int = 0,
+    var r2Hints: Int = 0,
+    var rDraw: Boolean = false
+)
+
+fun serializePlayers(players: List<Pair<String, String>>): String {
+    return players.joinToString("|") { "${it.first}:${it.second}" }
+}
+
+fun deserializePlayers(data: String): List<Pair<String, String>> {
+    if (data.isEmpty()) return emptyList()
+    return data.split("|").map {
+        val parts = it.split(":")
+        val name = parts.getOrNull(0) ?: ""
+        val title = parts.getOrNull(1) ?: ""
+        Pair(name, title)
+    }
+}
+
+fun serializeMatches(matches: List<TournamentMatch>): String {
+    return matches.joinToString(";") { m ->
+        "${m.player1Idx},${m.player2Idx},${m.winnerIdx},${m.score1},${m.score2},${m.p1Time},${m.p2Time},${m.p1Hints},${m.p2Hints},${m.r1Time},${m.r2Time},${m.r1Clicks},${m.r2Clicks},${m.r1Hints},${m.r2Hints},${if (m.rDraw) 1 else 0}"
+    }
+}
+
+fun deserializeMatches(data: String): List<TournamentMatch> {
+    if (data.isEmpty()) return emptyList()
+    return data.split(";").mapNotNull {
+        val parts = it.split(",")
+        if (parts.size >= 9) {
+            TournamentMatch(
+                player1Idx = parts[0].toInt(),
+                player2Idx = parts[1].toInt(),
+                winnerIdx = parts[2].toInt(),
+                score1 = parts[3].toInt(),
+                score2 = parts[4].toInt(),
+                p1Time = parts[5].toInt(),
+                p2Time = parts[6].toInt(),
+                p1Hints = parts[7].toInt(),
+                p2Hints = parts[8].toInt()
+            ).apply {
+                if (parts.size >= 16) {
+                    r1Time = parts[9].toInt()
+                    r2Time = parts[10].toInt()
+                    r1Clicks = parts[11].toInt()
+                    r2Clicks = parts[12].toInt()
+                    r1Hints = parts[13].toInt()
+                    r2Hints = parts[14].toInt()
+                    rDraw = parts[15] == "1"
+                }
+            }
+        } else null
+    }
+}
+
 class GameViewModel(
     application: Application,
     private val repository: GameRecordRepository
 ) : AndroidViewModel(application) {
 
     private val prefs = application.getSharedPreferences("xo_master_prefs", Context.MODE_PRIVATE)
+
+    // Player 1 & 2 customized names and titles
+    private val _p1Name = MutableStateFlow(prefs.getString("p1_name", "") ?: "")
+    val p1Name: StateFlow<String> = _p1Name.asStateFlow()
+
+    private val _p1Title = MutableStateFlow(prefs.getString("p1_title", "") ?: "")
+    val p1Title: StateFlow<String> = _p1Title.asStateFlow()
+
+    private val _p2Name = MutableStateFlow(prefs.getString("p2_name", "") ?: "")
+    val p2Name: StateFlow<String> = _p2Name.asStateFlow()
+
+    private val _p2Title = MutableStateFlow(prefs.getString("p2_title", "") ?: "")
+    val p2Title: StateFlow<String> = _p2Title.asStateFlow()
+
+    // Clicks and thinking time statistics
+    private val _p1MovesCount = MutableStateFlow(0)
+    val p1MovesCount: StateFlow<Int> = _p1MovesCount.asStateFlow()
+
+    private val _p2MovesCount = MutableStateFlow(0)
+    val p2MovesCount: StateFlow<Int> = _p2MovesCount.asStateFlow()
+
+    private val _p1ThinkingSeconds = MutableStateFlow(0)
+    val p1ThinkingSeconds: StateFlow<Int> = _p1ThinkingSeconds.asStateFlow()
+
+    private val _p2ThinkingSeconds = MutableStateFlow(0)
+    val p2ThinkingSeconds: StateFlow<Int> = _p2ThinkingSeconds.asStateFlow()
+
+    // Dual hint counters
+    private val _p1HintCount = MutableStateFlow(3)
+    val p1HintCount: StateFlow<Int> = _p1HintCount.asStateFlow()
+
+    private val _p2HintCount = MutableStateFlow(2)
+    val p2HintCount: StateFlow<Int> = _p2HintCount.asStateFlow()
+
+    // Background theme vs application theme
+    private val _backgroundTheme = MutableStateFlow(prefs.getString("background_theme", "DEFAULT") ?: "DEFAULT")
+    val backgroundTheme: StateFlow<String> = _backgroundTheme.asStateFlow()
+
+    // Tournament States
+    private val _activeTournamentId = MutableStateFlow<Long?>(null)
+    val activeTournamentId: StateFlow<Long?> = _activeTournamentId.asStateFlow()
+
+    private val _tournamentPlayers = MutableStateFlow<List<Pair<String, String>>>(emptyList())
+    val tournamentPlayers: StateFlow<List<Pair<String, String>>> = _tournamentPlayers.asStateFlow()
+
+    private val _tournamentMatches = MutableStateFlow<List<TournamentMatch>>(emptyList())
+    val tournamentMatches: StateFlow<List<TournamentMatch>> = _tournamentMatches.asStateFlow()
+
+    private val _currentTournamentMatchIndex = MutableStateFlow(-1)
+    val currentTournamentMatchIndex: StateFlow<Int> = _currentTournamentMatchIndex.asStateFlow()
+
+    private val _isTournamentReplay = MutableStateFlow(false)
+    val isTournamentReplay: StateFlow<Boolean> = _isTournamentReplay.asStateFlow()
+
+    private val _tournamentTieBreakerInfo = MutableStateFlow<String?>(null)
+    val tournamentTieBreakerInfo: StateFlow<String?> = _tournamentTieBreakerInfo.asStateFlow()
+
+    private val _tournamentWinnerName = MutableStateFlow<String?>(null)
+    val tournamentWinnerName: StateFlow<String?> = _tournamentWinnerName.asStateFlow()
+
+    val tournamentsList: StateFlow<List<com.example.data.Tournament>> = repository.allTournaments
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     // Board state: 9 cells, null = empty, "X" or "O"
     private val _board = MutableStateFlow(List<String?>(9) { null })
@@ -203,6 +342,8 @@ class GameViewModel(
         GameSoundPlayer.isSoundEnabled = _isSoundEnabled.value
         Localizer.currentLanguage = _appLanguage.value
 
+        startStopwatch()
+
         // Auto-save: check if there is a saved board state, if so, load it
         val savedBoardStr = prefs.getString("saved_board", null)
         if (savedBoardStr != null && savedBoardStr.isNotEmpty()) {
@@ -231,10 +372,27 @@ class GameViewModel(
         prefs.edit().putString("app_theme", theme).apply()
     }
 
+    fun setBackgroundTheme(theme: String) {
+        _backgroundTheme.value = theme
+        prefs.edit().putString("background_theme", theme).apply()
+    }
+
     fun setAppLanguage(language: String) {
         _appLanguage.value = language
         Localizer.currentLanguage = language
         prefs.edit().putString("app_language", language).apply()
+    }
+
+    fun setPlayer1Info(name: String, title: String) {
+        _p1Name.value = name
+        _p1Title.value = title
+        prefs.edit().putString("p1_name", name).putString("p1_title", title).apply()
+    }
+
+    fun setPlayer2Info(name: String, title: String) {
+        _p2Name.value = name
+        _p2Title.value = title
+        prefs.edit().putString("p2_name", name).putString("p2_title", title).apply()
     }
 
     // ==========================================
@@ -253,8 +411,9 @@ class GameViewModel(
         editor.putString("saved_game_mode", _gameMode.value)
         editor.putString("saved_bot_difficulty", _botDifficulty.value)
         editor.putString("saved_player_symbol", _playerSymbol.value)
-        editor.putInt("saved_hint_count", _hintCount.value)
         editor.putInt("saved_hints_used", hintsUsedInCurrentGame)
+        editor.putInt("saved_p1_hint_count", _p1HintCount.value)
+        editor.putInt("saved_p2_hint_count", _p2HintCount.value)
         
         // Save temporary round scores
         editor.putInt("saved_score_x", _scoreX.value)
@@ -282,8 +441,9 @@ class GameViewModel(
                     _gameMode.value = prefs.getString("saved_game_mode", "VS_BOT") ?: "VS_BOT"
                     _botDifficulty.value = prefs.getString("saved_bot_difficulty", "MEDIUM") ?: "MEDIUM"
                     _playerSymbol.value = prefs.getString("saved_player_symbol", "X") ?: "X"
-                    _hintCount.value = prefs.getInt("saved_hint_count", 3)
                     hintsUsedInCurrentGame = prefs.getInt("saved_hints_used", 0)
+                    _p1HintCount.value = prefs.getInt("saved_p1_hint_count", 3)
+                    _p2HintCount.value = prefs.getInt("saved_p2_hint_count", 2)
                     
                     _scoreX.value = prefs.getInt("saved_score_x", 0)
                     _scoreO.value = prefs.getInt("saved_score_o", 0)
@@ -304,6 +464,8 @@ class GameViewModel(
             remove("saved_winning_line")
             remove("saved_is_game_over")
             remove("saved_hints_used")
+            remove("saved_p1_hint_count")
+            remove("saved_p2_hint_count")
         }.apply()
     }
 
@@ -353,7 +515,20 @@ class GameViewModel(
         boardHistory.clear()
         turnHistory.clear()
         _highlightedCell.value = null
-        _hintCount.value = 3
+        
+        // Clicks/Timers reset
+        _p1MovesCount.value = 0
+        _p2MovesCount.value = 0
+        _p1ThinkingSeconds.value = 0
+        _p2ThinkingSeconds.value = 0
+        
+        if (_gameMode.value == "VS_BOT") {
+            _p1HintCount.value = 3
+            _p2HintCount.value = 0
+        } else {
+            _p1HintCount.value = 2
+            _p2HintCount.value = 2
+        }
         hintsUsedInCurrentGame = 0
 
         clearSavedGame()
@@ -363,6 +538,54 @@ class GameViewModel(
         if (_gameMode.value == "VS_BOT" && botSymbol == "X") {
             triggerBotMove()
         }
+    }
+
+    private var stopwatchJob: kotlinx.coroutines.Job? = null
+
+    fun startStopwatch() {
+        stopwatchJob?.cancel()
+        stopwatchJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                if (!_isGameOver.value && !_isBotThinking.value) {
+                    val isP1 = _currentTurn.value == "X"
+                    if (isP1) {
+                        _p1ThinkingSeconds.value += 1
+                    } else {
+                        _p2ThinkingSeconds.value += 1
+                    }
+                }
+            }
+        }
+    }
+
+    fun getPlayer1DisplayName(): String {
+        val name = _p1Name.value.trim()
+        val title = _p1Title.value.trim()
+        return if (name.isNotEmpty()) {
+            if (title.isNotEmpty()) "$title $name" else name
+        } else {
+            if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
+        }
+    }
+
+    fun getPlayer2DisplayName(): String {
+        val name = _p2Name.value.trim()
+        val title = _p2Title.value.trim()
+        return if (name.isNotEmpty()) {
+            if (title.isNotEmpty()) "$title $name" else name
+        } else {
+            if (_gameMode.value == "VS_BOT") {
+                if (Localizer.currentLanguage == "AR") "البوت O" else "Bot O"
+            } else {
+                if (Localizer.currentLanguage == "AR") "اللاعب O" else "Player O"
+            }
+        }
+    }
+
+    fun isLeague(): Boolean {
+        // Simple helper to check if tournament type is LEAGUE
+        return true
     }
 
     fun onCellClick(index: Int) {
@@ -379,6 +602,13 @@ class GameViewModel(
         _highlightedCell.value = null
 
         val activeSymbol = _currentTurn.value
+
+        // Track moves count
+        if (activeSymbol == "X") {
+            _p1MovesCount.value += 1
+        } else {
+            _p2MovesCount.value += 1
+        }
 
         // Play custom symbol sound
         if (activeSymbol == "X") {
@@ -433,6 +663,9 @@ class GameViewModel(
                 // Record history before bot move so we can undo both human & bot
                 boardHistory.add(currentBoard)
                 turnHistory.add(botSymbol)
+
+                // Track move for bot
+                _p2MovesCount.value += 1
 
                 // Play custom symbol sound for bot action
                 if (botSymbol == "X") {
@@ -491,17 +724,32 @@ class GameViewModel(
         }
 
         // Save records to DB
+        val wName = if (winnerSymbol == "X") getPlayer1DisplayName() else getPlayer2DisplayName()
+        val wTime = if (winnerSymbol == "X") _p1ThinkingSeconds.value else _p2ThinkingSeconds.value
+        val wClicks = if (winnerSymbol == "X") _p1MovesCount.value else _p2MovesCount.value
+        val lName = if (winnerSymbol == "X") getPlayer2DisplayName() else getPlayer1DisplayName()
+        val lTime = if (winnerSymbol == "X") _p2ThinkingSeconds.value else _p1ThinkingSeconds.value
+
         viewModelScope.launch {
             val record = GameRecord(
-                gameMode = if (_gameMode.value == "VS_BOT") "BOT_${_botDifficulty.value}" else "FRIEND",
+                gameMode = getDBGameMode(),
                 winnerSymbol = winnerSymbol,
-                playerSymbol = _playerSymbol.value
+                playerSymbol = _playerSymbol.value,
+                winnerName = wName,
+                winnerTime = wTime,
+                winnerClicks = wClicks,
+                loserName = lName,
+                loserTime = lTime
             )
             repository.insertRecord(record)
         }
 
-        clearSavedGame()
-        saveGameState()
+        if (_gameMode.value == "TOURNAMENT") {
+            processTournamentMatchOutcome(winnerSymbol)
+        } else {
+            clearSavedGame()
+            saveGameState()
+        }
     }
 
     private fun handleTie() {
@@ -513,15 +761,310 @@ class GameViewModel(
         // Save records to DB
         viewModelScope.launch {
             val record = GameRecord(
-                gameMode = if (_gameMode.value == "VS_BOT") "BOT_${_botDifficulty.value}" else "FRIEND",
+                gameMode = getDBGameMode(),
                 winnerSymbol = null,
-                playerSymbol = _playerSymbol.value
+                playerSymbol = _playerSymbol.value,
+                winnerName = null,
+                winnerTime = 0,
+                winnerClicks = 0,
+                loserName = null,
+                loserTime = 0
             )
             repository.insertRecord(record)
         }
 
+        if (_gameMode.value == "TOURNAMENT") {
+            processTournamentMatchOutcome(null)
+        } else {
+            clearSavedGame()
+            saveGameState()
+        }
+    }
+
+    private fun getDBGameMode(): String {
+        return when (_gameMode.value) {
+            "VS_BOT" -> "BOT_${_botDifficulty.value}"
+            "VS_FRIEND" -> "FRIEND"
+            "TOURNAMENT" -> "TOURNAMENT"
+            else -> "FRIEND"
+        }
+    }
+
+    // ==========================================
+    // TOURNAMENT CONTROLLER LOGIC
+    // ==========================================
+    fun startNewTournament(
+        name: String,
+        type: String, // "LEAGUE" or "KNOCKOUT"
+        players: List<Pair<String, String>>
+    ) {
+        _tournamentPlayers.value = players
+        _currentTournamentMatchIndex.value = 0
+        _isTournamentReplay.value = false
+        _tournamentTieBreakerInfo.value = null
+        _tournamentWinnerName.value = null
+        _gameMode.value = "TOURNAMENT"
+
+        // Generate Matches
+        val generated = mutableListOf<TournamentMatch>()
+        if (type == "LEAGUE") {
+            for (i in players.indices) {
+                for (j in i + 1 until players.size) {
+                    generated.add(TournamentMatch(player1Idx = i, player2Idx = j))
+                }
+            }
+            generated.shuffle()
+        } else {
+            var i = 0
+            while (i < players.size) {
+                if (i + 1 < players.size) {
+                    generated.add(TournamentMatch(player1Idx = i, player2Idx = i + 1))
+                } else {
+                    generated.add(TournamentMatch(player1Idx = i, player2Idx = i, winnerIdx = 0))
+                }
+                i += 2
+            }
+        }
+
+        _tournamentMatches.value = generated
+
+        viewModelScope.launch {
+            val dbTournament = com.example.data.Tournament(
+                name = name,
+                type = type,
+                playersData = serializePlayers(players),
+                matchesData = serializeMatches(generated),
+                currentMatchIndex = 0,
+                winnerName = null
+            )
+            val generatedId = repository.insertTournament(dbTournament)
+            _activeTournamentId.value = generatedId
+        }
+
+        setupActiveTournamentMatch()
+    }
+
+    private fun setupActiveTournamentMatch() {
+        val idx = _currentTournamentMatchIndex.value
+        val matches = _tournamentMatches.value
+        if (idx in matches.indices) {
+            val match = matches[idx]
+            val p1 = _tournamentPlayers.value[match.player1Idx]
+            val p2 = _tournamentPlayers.value[match.player2Idx]
+
+            _p1Name.value = p1.first
+            _p1Title.value = p1.second
+            _p2Name.value = p2.first
+            _p2Title.value = p2.second
+
+            _playerSymbol.value = "X"
+            _p1HintCount.value = 2
+            _p2HintCount.value = 2
+
+            resetGameForNextTournamentMatch()
+        }
+    }
+
+    private fun resetGameForNextTournamentMatch() {
+        _board.value = List(9) { null }
+        _currentTurn.value = "X"
+        _winner.value = null
+        _winningLine.value = null
+        _isGameOver.value = false
+        _isBotThinking.value = false
+        
+        boardHistory.clear()
+        turnHistory.clear()
+        _highlightedCell.value = null
+        
+        _p1MovesCount.value = 0
+        _p2MovesCount.value = 0
+        _p1ThinkingSeconds.value = 0
+        _p2ThinkingSeconds.value = 0
+        
+        hintsUsedInCurrentGame = 0
+        
         clearSavedGame()
         saveGameState()
+    }
+
+    fun resumeTournament(tournament: com.example.data.Tournament) {
+        _activeTournamentId.value = tournament.id
+        _tournamentPlayers.value = deserializePlayers(tournament.playersData)
+        _tournamentMatches.value = deserializeMatches(tournament.matchesData)
+        _currentTournamentMatchIndex.value = tournament.currentMatchIndex
+        _isTournamentReplay.value = false
+        _tournamentTieBreakerInfo.value = null
+        _tournamentWinnerName.value = null
+        _gameMode.value = "TOURNAMENT"
+
+        if (tournament.currentMatchIndex < _tournamentMatches.value.size) {
+            setupActiveTournamentMatch()
+        } else {
+            calculateAndShowTournamentWinner()
+        }
+    }
+
+    private fun processTournamentMatchOutcome(winnerSymbol: String?) {
+        val idx = _currentTournamentMatchIndex.value
+        val matches = _tournamentMatches.value.toMutableList()
+        if (idx !in matches.indices) return
+
+        val match = matches[idx]
+
+        if (winnerSymbol != null) {
+            val wonIdx = if (winnerSymbol == "X") 0 else 1
+            match.winnerIdx = wonIdx
+            match.score1 = if (wonIdx == 0) 3 else 0
+            match.score2 = if (wonIdx == 1) 3 else 0
+            match.p1Time = _p1ThinkingSeconds.value
+            match.p2Time = _p2ThinkingSeconds.value
+            match.p1Hints = 2 - _p1HintCount.value
+            match.p2Hints = 2 - _p2HintCount.value
+            _isTournamentReplay.value = false
+            _tournamentTieBreakerInfo.value = null
+
+            advanceTournamentMatch(matches)
+        } else {
+            if (!_isTournamentReplay.value) {
+                match.r1Time = _p1ThinkingSeconds.value
+                match.r2Time = _p2ThinkingSeconds.value
+                match.r1Clicks = _p1MovesCount.value
+                match.r2Clicks = _p2MovesCount.value
+                match.r1Hints = 2 - _p1HintCount.value
+                match.r2Hints = 2 - _p2HintCount.value
+                match.rDraw = true
+
+                _isTournamentReplay.value = true
+                _tournamentTieBreakerInfo.value = if (Localizer.currentLanguage == "AR") {
+                    "تعادل اللاعبين! تعاد المباراة لحسم النتيجة."
+                } else {
+                    "Tie game! Match will replay to break the tie."
+                }
+            } else {
+                val p1Time2 = _p1ThinkingSeconds.value
+                val p2Time2 = _p2ThinkingSeconds.value
+                val p1Clicks2 = _p1MovesCount.value
+                val p2Clicks2 = _p2MovesCount.value
+                val p1Hints2 = 2 - _p1HintCount.value
+                val p2Hints2 = 2 - _p2HintCount.value
+
+                val totalHints1 = match.r1Hints + p1Hints2
+                val totalHints2 = match.r2Hints + p2Hints2
+
+                val totalTime1 = match.r1Time + p1Time2
+                val totalTime2 = match.r2Time + p2Time2
+
+                val totalClicks1 = match.r1Clicks + p1Clicks2
+                val totalClicks2 = match.r2Clicks + p2Clicks2
+
+                val wonIdx = when {
+                    totalHints1 < totalHints2 -> 0
+                    totalHints2 < totalHints1 -> 1
+                    totalTime1 < totalTime2 -> 0
+                    totalTime2 < totalTime1 -> 1
+                    totalClicks1 < totalClicks2 -> 0
+                    totalClicks2 < totalClicks1 -> 1
+                    else -> 0
+                }
+
+                match.winnerIdx = wonIdx
+                match.score1 = if (wonIdx == 0) 3 else 0
+                match.score2 = if (wonIdx == 1) 3 else 0
+                match.p1Time = totalTime1
+                match.p2Time = totalTime2
+                match.p1Hints = totalHints1
+                match.p2Hints = totalHints2
+
+                val p1NameStr = _tournamentPlayers.value[match.player1Idx].first
+                val p2NameStr = _tournamentPlayers.value[match.player2Idx].first
+                val winnerNameStr = if (wonIdx == 0) p1NameStr else p2NameStr
+
+                val tieBreakerText = if (Localizer.currentLanguage == "AR") {
+                    "حسم التعادل الثاني! الفائز: $winnerNameStr بناءً على الأداء (التلميحات: $totalHints1 vs $totalHints2، الوقت: ${totalTime1}ث vs ${totalTime2}ث، النقرات: $totalClicks1 vs $totalClicks2)"
+                } else {
+                    "Second tie broken! Winner: $winnerNameStr based on stats (Hints: $totalHints1 vs $totalHints2, Time: ${totalTime1}s vs ${totalTime2}s, Clicks: $totalClicks1 vs $totalClicks2)"
+                }
+
+                _tournamentTieBreakerInfo.value = tieBreakerText
+                _isTournamentReplay.value = false
+
+                advanceTournamentMatch(matches)
+            }
+        }
+    }
+
+    private fun advanceTournamentMatch(updatedMatches: List<TournamentMatch>) {
+        _tournamentMatches.value = updatedMatches
+        
+        viewModelScope.launch {
+            val currentId = _activeTournamentId.value
+            if (currentId != null) {
+                val dbTournament = repository.getTournamentById(currentId)
+                if (dbTournament != null) {
+                    val nextIndex = _currentTournamentMatchIndex.value + 1
+                    val isCompleted = nextIndex >= updatedMatches.size
+                    
+                    var champName: String? = null
+                    if (isCompleted) {
+                        champName = computeTournamentChampionName(updatedMatches)
+                    }
+
+                    val updatedDb = dbTournament.copy(
+                        matchesData = serializeMatches(updatedMatches),
+                        currentMatchIndex = nextIndex,
+                        winnerName = champName
+                    )
+                    repository.insertTournament(updatedDb)
+                }
+            }
+        }
+    }
+
+    fun proceedToNextTournamentMatch() {
+        val nextIndex = _currentTournamentMatchIndex.value + 1
+        _currentTournamentMatchIndex.value = nextIndex
+        _tournamentTieBreakerInfo.value = null
+        _isTournamentReplay.value = false
+
+        if (nextIndex < _tournamentMatches.value.size) {
+            setupActiveTournamentMatch()
+        } else {
+            calculateAndShowTournamentWinner()
+        }
+    }
+
+    private fun calculateAndShowTournamentWinner() {
+        val winnerNameStr = computeTournamentChampionName(_tournamentMatches.value)
+        _tournamentWinnerName.value = winnerNameStr
+        
+        GameSoundPlayer.playTournamentChampTheme()
+    }
+
+    private fun computeTournamentChampionName(matches: List<TournamentMatch>): String {
+        val players = _tournamentPlayers.value
+        if (players.isEmpty()) return ""
+
+        val points = IntArray(players.size) { 0 }
+        for (m in matches) {
+            if (m.winnerIdx == 0) {
+                points[m.player1Idx] += 3
+            } else if (m.winnerIdx == 1) {
+                points[m.player2Idx] += 3
+            }
+        }
+
+        var maxPoints = -1
+        var bestIdx = 0
+        for (i in points.indices) {
+            if (points[i] > maxPoints) {
+                maxPoints = points[i]
+                bestIdx = i
+            }
+        }
+
+        val champ = players[bestIdx]
+        return "${champ.second} ${champ.first}".trim()
     }
 
     fun clearHistory() {
@@ -530,16 +1073,30 @@ class GameViewModel(
         }
     }
 
+    fun deleteTournamentById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteTournamentById(id)
+        }
+    }
+
+    fun clearAllTournaments() {
+        viewModelScope.launch {
+            repository.clearTournaments()
+        }
+    }
+
     fun wipeAllData() {
         viewModelScope.launch {
             repository.clearHistory()
+            repository.clearTournaments()
             resetScores()
             resetGame()
             
             // Restore default preferences
             setSoundEnabled(true)
             setHapticEnabled(true)
-            setAppTheme("COSMIC_FANTASY")
+            setAppTheme("DEFAULT")
+            setBackgroundTheme("DEFAULT")
             setAppLanguage("AR")
             hintsUsedInCurrentGame = 0
             
@@ -585,10 +1142,18 @@ class GameViewModel(
     }
 
     fun requestHint() {
-        if (_isGameOver.value || _isBotThinking.value || _hintCount.value <= 0) return
+        if (_isGameOver.value || _isBotThinking.value) return
+
+        val isP1 = _currentTurn.value == "X"
+        val count = if (isP1) _p1HintCount.value else _p2HintCount.value
+        if (count <= 0) return
 
         GameSoundPlayer.playClick()
-        _hintCount.value -= 1
+        if (isP1) {
+            _p1HintCount.value -= 1
+        } else {
+            _p2HintCount.value -= 1
+        }
         hintsUsedInCurrentGame += 1
 
         val activeSymbol = _currentTurn.value
@@ -616,6 +1181,17 @@ class GameViewModel(
 
     // Return the status of used hints in the current round
     fun didUseAllThreeHints(): Boolean = hintsUsedInCurrentGame >= 3
+
+    fun clearActiveTournament() {
+        _activeTournamentId.value = null
+        _tournamentPlayers.value = emptyList()
+        _tournamentMatches.value = emptyList()
+        _currentTournamentMatchIndex.value = 0
+        _tournamentWinnerName.value = null
+        _tournamentTieBreakerInfo.value = null
+        _gameMode.value = "VS_BOT" // fallback to VS_BOT
+        clearSavedGame()
+    }
 }
 
 class GameViewModelFactory(

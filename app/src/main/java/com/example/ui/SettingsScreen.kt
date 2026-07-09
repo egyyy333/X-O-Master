@@ -67,6 +67,7 @@ fun SettingsScreen(
     val isSoundEnabled by viewModel.isSoundEnabled.collectAsState()
     val isHapticEnabled by viewModel.isHapticEnabled.collectAsState()
     val appTheme by viewModel.appTheme.collectAsState()
+    val backgroundTheme by viewModel.backgroundTheme.collectAsState()
     val appLanguage by viewModel.appLanguage.collectAsState()
 
     val haptic = LocalHapticFeedback.current
@@ -252,7 +253,97 @@ fun SettingsScreen(
             }
         }
 
-        // 3. THEME SELECTION CARD
+        // 3. BACKGROUND THEME SELECTION CARD
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 500.dp)
+                .padding(vertical = 8.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+            border = BorderStroke(1.dp, cardBorderColor)
+        ) {
+            Column(modifier = Modifier.padding(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Palette,
+                        contentDescription = null,
+                        tint = Color(0xFF00E5FF),
+                        modifier = Modifier.size(26.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = if (appLanguage == "AR") "🎨 سمات الخلفية المتحركة" else "🎨 Animated Background Themes",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "الافتراضي الساحر 🌌" else "Magic Cosmic 🌌",
+                            isSelected = backgroundTheme == "DEFAULT",
+                            color = Color(0xFF8B5CF6),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setBackgroundTheme("DEFAULT")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "بوابة النيون 🌀" else "Neon Portal 🌀",
+                            isSelected = backgroundTheme == "BG_NEON_PORTAL",
+                            color = Color(0xFF00F5D4),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setBackgroundTheme("BG_NEON_PORTAL")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "السديم المجري ⭐" else "Galaxy Nebula ⭐",
+                            isSelected = backgroundTheme == "BG_GALACTIC_NEBULA",
+                            color = Color(0xFFFFB703),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setBackgroundTheme("BG_GALACTIC_NEBULA")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "الموجة العميقة 🌊" else "Abyssal Wave 🌊",
+                            isSelected = backgroundTheme == "BG_ABYSSAL_WAVE",
+                            color = Color(0xFF00B4D8),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setBackgroundTheme("BG_ABYSSAL_WAVE")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // 3B. APP UI THEME SELECTION CARD
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -271,7 +362,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = Localizer.get("settings_theme"),
+                        text = if (appLanguage == "AR") "📱 سمات واجهة التطبيق والأزرار" else "📱 App UI Themes & Buttons",
                         color = textColorPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
@@ -279,45 +370,93 @@ fun SettingsScreen(
                 }
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    ThemeOptionButton(
-                        label = Localizer.get("settings_theme_fantasy"),
-                        isSelected = appTheme == "COSMIC_FANTASY",
-                        color = Color(0xFF8B5CF6),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            viewModel.setAppTheme("COSMIC_FANTASY")
-                            GameSoundPlayer.playClick()
-                            triggerVibration()
-                        }
-                    )
-                    ThemeOptionButton(
-                        label = Localizer.get("settings_theme_dark"),
-                        isSelected = appTheme == "DARK",
-                        color = Color(0xFF38BDF8),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            viewModel.setAppTheme("DARK")
-                            GameSoundPlayer.playClick()
-                            triggerVibration()
-                        }
-                    )
-                    ThemeOptionButton(
-                        label = Localizer.get("settings_theme_light"),
-                        isSelected = appTheme == "LIGHT",
-                        color = Color(0xFF64748B),
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            viewModel.setAppTheme("LIGHT")
-                            GameSoundPlayer.playClick()
-                            triggerVibration()
-                        }
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "الافتراضي الأنيق 🎨" else "Elegant Default 🎨",
+                            isSelected = appTheme == "DEFAULT",
+                            color = Color(0xFF00E5FF),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setAppTheme("DEFAULT")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "الكوني الخيالي 🔮" else "Cosmic Fantasy 🔮",
+                            isSelected = appTheme == "COSMIC_FANTASY",
+                            color = Color(0xFF8B5CF6),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setAppTheme("COSMIC_FANTASY")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "النيون السيبراني ⚡" else "Cyber Neon ⚡",
+                            isSelected = appTheme == "CYBER_NEON",
+                            color = Color(0xFFFF2D55),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setAppTheme("CYBER_NEON")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                        ThemeOptionButton(
+                            label = if (appLanguage == "AR") "الذهبي الملكي 👑" else "Royal Gold 👑",
+                            isSelected = appTheme == "ROYAL_GOLD",
+                            color = Color(0xFFD4AF37),
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.setAppTheme("ROYAL_GOLD")
+                                GameSoundPlayer.playClick()
+                                triggerVibration()
+                            }
+                        )
+                    }
                 }
             }
+        }
+
+        // QUICK DEFAULT THEMES RESET BUTTON
+        Button(
+            onClick = {
+                viewModel.setAppTheme("DEFAULT")
+                viewModel.setBackgroundTheme("DEFAULT")
+                GameSoundPlayer.playTone(880.0, 150, "CHIME")
+                triggerVibration()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 500.dp)
+                .padding(vertical = 4.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (appTheme == "LIGHT") Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                contentColor = if (appTheme == "LIGHT") Color(0xFF0F172A) else Color(0xFF00E5FF)
+            ),
+            border = BorderStroke(1.dp, if (appTheme == "LIGHT") Color(0xFFCBD5E1) else Color(0xFF2D3748))
+        ) {
+            Text(
+                text = if (appLanguage == "AR") "✨ إعادة ضبط السمات للافتراضي (مع حركة ساحرة)" else "✨ Reset to Default Themes (Magic Flow)",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold
+            )
         }
 
         // 4. LANGUAGE SELECTION CARD

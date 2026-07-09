@@ -205,4 +205,27 @@ object GameSoundPlayer {
             playTone(880.0, 40, "BOOP")
         }
     }
+
+    /**
+     * Plays an epic retro champion victory anthem for tournament winners.
+     */
+    fun playTournamentChampTheme() {
+        if (!isSoundEnabled) return
+        scope.launch {
+            val anthem = listOf(
+                Pair(523.25, 180), // C5
+                Pair(523.25, 180), // C5
+                Pair(523.25, 180), // C5
+                Pair(659.25, 300), // E5
+                Pair(587.33, 180), // D5
+                Pair(659.25, 180), // E5
+                Pair(783.99, 450), // G5
+                Pair(1046.50, 600)  // C6
+            )
+            for (note in anthem) {
+                playTone(note.first, note.second, "CHIME")
+                delay(note.second + 30L)
+            }
+        }
+    }
 }

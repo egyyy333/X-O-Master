@@ -16,4 +16,21 @@ interface GameRecordDao {
 
     @Query("DELETE FROM game_records")
     suspend fun deleteAllRecords()
+
+    // Tournament queries
+    @Query("SELECT * FROM tournaments ORDER BY timestamp DESC")
+    fun getAllTournaments(): Flow<List<Tournament>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTournament(tournament: Tournament): Long
+
+    @Query("SELECT * FROM tournaments WHERE id = :id")
+    suspend fun getTournamentById(id: Long): Tournament?
+
+    @Query("DELETE FROM tournaments WHERE id = :id")
+    suspend fun deleteTournamentById(id: Long)
+
+    @Query("DELETE FROM tournaments")
+    suspend fun deleteAllTournaments()
 }
+
