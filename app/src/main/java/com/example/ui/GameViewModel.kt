@@ -346,8 +346,6 @@ class GameViewModel(
         GameSoundPlayer.isSoundEnabled = _isSoundEnabled.value
         Localizer.currentLanguage = _appLanguage.value
 
-        startStopwatch()
-
         // Auto-save: check if there is a saved board state, if so, load it
         val savedBoardStr = prefs.getString("saved_board", null)
         if (savedBoardStr != null && savedBoardStr.isNotEmpty()) {
@@ -565,6 +563,11 @@ class GameViewModel(
                 }
             }
         }
+    }
+
+    fun stopStopwatch() {
+        stopwatchJob?.cancel()
+        stopwatchJob = null
     }
 
     fun getPlayer1DisplayName(): String {
@@ -967,72 +970,97 @@ class GameViewModel(
 
             advanceTournamentMatch(matches)
         } else {
-            if (!_isTournamentReplay.value) {
-                match.r1Time = _p1ThinkingSeconds.value
-                match.r2Time = _p2ThinkingSeconds.value
-                match.r1Clicks = _p1MovesCount.value
-                match.r2Clicks = _p2MovesCount.value
-                match.r1Hints = 2 - _p1HintCount.value
-                match.r2Hints = 2 - _p2HintCount.value
-                match.rDraw = true
-
-                _isTournamentReplay.value = true
-                _tournamentTieBreakerInfo.value = if (Localizer.currentLanguage == "AR") {
-                    "تعادل اللاعبين! تعاد المباراة لحسم النتيجة."
-                } else {
-                    "Tie game! Match will replay to break the tie."
-                }
-            } else {
-                val p1Time2 = _p1ThinkingSeconds.value
-                val p2Time2 = _p2ThinkingSeconds.value
-                val p1Clicks2 = _p1MovesCount.value
-                val p2Clicks2 = _p2MovesCount.value
-                val p1Hints2 = 2 - _p1HintCount.value
-                val p2Hints2 = 2 - _p2HintCount.value
-
-                val totalHints1 = match.r1Hints + p1Hints2
-                val totalHints2 = match.r2Hints + p2Hints2
-
-                val totalTime1 = match.r1Time + p1Time2
-                val totalTime2 = match.r2Time + p2Time2
-
-                val totalClicks1 = match.r1Clicks + p1Clicks2
-                val totalClicks2 = match.r2Clicks + p2Clicks2
-
-                val wonIdx = when {
-                    totalHints1 < totalHints2 -> 0
-                    totalHints2 < totalHints1 -> 1
-                    totalTime1 < totalTime2 -> 0
-                    totalTime2 < totalTime1 -> 1
-                    totalClicks1 < totalClicks2 -> 0
-                    totalClicks2 < totalClicks1 -> 1
-                    else -> 0
-                }
-
-                match.winnerIdx = wonIdx
-                match.score1 = if (wonIdx == 0) 3 else 0
-                match.score2 = if (wonIdx == 1) 3 else 0
-                match.p1Time = totalTime1
-                match.p2Time = totalTime2
-                match.p1Hints = totalHints1
-                match.p2Hints = totalHints2
-
-                val p1Actual = getActualPlayerIndexForMatch(match.player1Idx, _tournamentMatches.value)
-                val p2Actual = getActualPlayerIndexForMatch(match.player2Idx, _tournamentMatches.value)
-                val p1NameStr = if (p1Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p1Actual].first else "?"
-                val p2NameStr = if (p2Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p2Actual].first else "?"
-                val winnerNameStr = if (wonIdx == 0) p1NameStr else p2NameStr
-
-                val tieBreakerText = if (Localizer.currentLanguage == "AR") {
-                    "حسم التعادل الثاني! الفائز: $winnerNameStr بناءً على الأداء (التلميحات: $totalHints1 vs $totalHints2، الوقت: ${totalTime1}ث vs ${totalTime2}ث، النقرات: $totalClicks1 vs $totalClicks2)"
-                } else {
-                    "Second tie broken! Winner: $winnerNameStr based on stats (Hints: $totalHints1 vs $totalHints2, Time: ${totalTime1}s vs ${totalTime2}s, Clicks: $totalClicks1 vs $totalClicks2)"
-                }
-
-                _tournamentTieBreakerInfo.value = tieBreakerText
+            if (_tournamentType.value == "LEAGUE") {
+                // League draws: both get 1 point, no replay
+                match.winnerIdx = 2 // 2 indicates Draw
+                match.score1 = 1
+                match.score2 = 1
+                match.p1Time = _p1ThinkingSeconds.value
+                match.p2Time = _p2ThinkingSeconds.value
+                match.p1Hints = 2 - _p1HintCount.value
+                match.p2Hints = 2 - _p2HintCount.value
                 _isTournamentReplay.value = false
+                _tournamentTieBreakerInfo.value = null
 
                 advanceTournamentMatch(matches)
+            } else {
+                // Knockout stage draws
+                if (!_isTournamentReplay.value) {
+                    match.r1Time = _p1ThinkingSeconds.value
+                    match.r2Time = _p2ThinkingSeconds.value
+                    match.r1Clicks = _p1MovesCount.value
+                    match.r2Clicks = _p2MovesCount.value
+                    match.r1Hints = 2 - _p1HintCount.value
+                    match.r2Hints = 2 - _p2HintCount.value
+                    match.rDraw = true
+
+                    _isTournamentReplay.value = true
+                    _tournamentTieBreakerInfo.value = if (Localizer.currentLanguage == "AR") {
+                        "تعادل اللاعبين! تعاد المباراة لحسم النتيجة في مرحلة خروج المغلوب ⚔️"
+                    } else {
+                        "Tie game! Match will replay to break the tie in Knockout phase."
+                    }
+                } else {
+                    val p1Time2 = _p1ThinkingSeconds.value
+                    val p2Time2 = _p2ThinkingSeconds.value
+                    val p1Clicks2 = _p1MovesCount.value
+                    val p2Clicks2 = _p2MovesCount.value
+                    val p1Hints2 = 2 - _p1HintCount.value
+                    val p2Hints2 = 2 - _p2HintCount.value
+
+                    val totalHints1 = match.r1Hints + p1Hints2
+                    val totalHints2 = match.r2Hints + p2Hints2
+
+                    val totalTime1 = match.r1Time + p1Time2
+                    val totalTime2 = match.r2Time + p2Time2
+
+                    val totalClicks1 = match.r1Clicks + p1Clicks2
+                    val totalClicks2 = match.r2Clicks + p2Clicks2
+
+                    val wonIdx = when {
+                        totalHints1 < totalHints2 -> 0
+                        totalHints2 < totalHints1 -> 1
+                        totalTime1 < totalTime2 -> 0
+                        totalTime2 < totalTime1 -> 1
+                        totalClicks1 < totalClicks2 -> 0
+                        totalClicks2 < totalClicks1 -> 1
+                        else -> 0
+                    }
+
+                    match.winnerIdx = wonIdx
+                    match.score1 = if (wonIdx == 0) 3 else 0
+                    match.score2 = if (wonIdx == 1) 3 else 0
+                    match.p1Time = totalTime1
+                    match.p2Time = totalTime2
+                    match.p1Hints = totalHints1
+                    match.p2Hints = totalHints2
+
+                    val p1Actual = getActualPlayerIndexForMatch(match.player1Idx, _tournamentMatches.value)
+                    val p2Actual = getActualPlayerIndexForMatch(match.player2Idx, _tournamentMatches.value)
+                    val p1NameStr = if (p1Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p1Actual].first else "?"
+                    val p2NameStr = if (p2Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p2Actual].first else "?"
+                    val winnerNameStr = if (wonIdx == 0) p1NameStr else p2NameStr
+
+                    val tieBreakerText = if (Localizer.currentLanguage == "AR") {
+                        var explanation = "انتهت مباراة الإعادة بالتعادل أيضاً! "
+                        explanation += "تم اختيار الفائز ($winnerNameStr) بناءً على الأداء الأكثر كفاءة: "
+                        if (totalHints1 != totalHints2) {
+                            explanation += "استخدم تلميحات أقل ($totalHints1 ضد $totalHints2 لـ ${if (wonIdx == 0) p2NameStr else p1NameStr})."
+                        } else if (totalTime1 != totalTime2) {
+                            explanation += "تساوت التلميحات، وتم الحسم بناءً على سرعة التفكير الإجمالية (${totalTime1} ثانية ضد ${totalTime2} ثانية)."
+                        } else {
+                            explanation += "تساوت التلميحات والوقت، وتم الحسم بناءً على عدد الحركات الأقل (${totalClicks1} حركات ضد ${totalClicks2} حركات)."
+                        }
+                        explanation
+                    } else {
+                        "Second replay also ended in a tie! Winner: $winnerNameStr based on stats (Hints: $totalHints1 vs $totalHints2, Time: ${totalTime1}s vs ${totalTime2}s)."
+                    }
+
+                    _tournamentTieBreakerInfo.value = tieBreakerText
+                    _isTournamentReplay.value = false
+
+                    advanceTournamentMatch(matches)
+                }
             }
         }
     }
@@ -1250,7 +1278,7 @@ class GameViewModel(
         _currentTournamentMatchIndex.value = 0
         _tournamentWinnerName.value = null
         _tournamentTieBreakerInfo.value = null
-        _gameMode.value = "VS_BOT" // fallback to VS_BOT
+        _gameMode.value = "TOURNAMENT"
         clearSavedGame()
     }
 }

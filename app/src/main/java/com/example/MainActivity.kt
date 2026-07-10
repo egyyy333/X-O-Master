@@ -79,6 +79,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.heightIn
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
@@ -970,6 +972,13 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
     fun triggerMoveFeedback() {
         if (isHapticEnabled) {
             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+    }
+
+    DisposableEffect(Unit) {
+        viewModel.startStopwatch()
+        onDispose {
+            viewModel.stopStopwatch()
         }
     }
 
@@ -2479,7 +2488,7 @@ fun VictoryOverlay(
             val titleText = when {
                 winner != null -> {
                     val wName = if (winner == "X") viewModel.getPlayer1DisplayName() else viewModel.getPlayer2DisplayName()
-                    if (viewModel.appLanguage.value == "AR") "النصر الحاسم لـ $wName 🎉" else "Victory for $wName 🎉"
+                    if (viewModel.appLanguage.value == "AR") "فوز $wName 🎉" else "Victory for $wName 🎉"
                 }
                 else -> Localizer.get("draw_title")
             }
@@ -2568,13 +2577,6 @@ fun VictoryOverlay(
                                 .border(BorderStroke(2.dp, titleColor), androidx.compose.foundation.shape.CircleShape)
                                 .padding(12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.EmojiEvents,
-                                contentDescription = null,
-                                tint = Color(0xFFFFD700),
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = wName,
                                 color = textColorPrimary,
@@ -2946,6 +2948,7 @@ fun StandingsList(
 
                 Text(text = "${row.wins}", color = textColorPrimary, fontSize = 13.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
                 Text(text = "${row.draws}", color = textColorPrimary, fontSize = 13.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
+                Text(text = "${row.losses}", color = textColorPrimary, fontSize = 13.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
                 Text(text = "${row.points}", color = accentColor, fontSize = 14.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
             }
         }
@@ -2977,14 +2980,16 @@ fun TournamentDetailsDialog(
             var losses = 0
             var points = 0
             matches.forEach { m ->
+                val p1Actual = getActualPlayerIndexForMatchStatic(m.player1Idx, matches, players.size)
+                val p2Actual = getActualPlayerIndexForMatchStatic(m.player2Idx, matches, players.size)
                 if (m.winnerIdx != -1) {
-                    if (m.player1Idx == idx) {
+                    if (p1Actual == idx) {
                         when (m.winnerIdx) {
                             0 -> { wins++; points += 3 }
                             2 -> { draws++; points += 1 }
                             1 -> { losses++ }
                         }
-                    } else if (m.player2Idx == idx) {
+                    } else if (p2Actual == idx) {
                         when (m.winnerIdx) {
                             1 -> { wins++; points += 3 }
                             2 -> { draws++; points += 1 }
@@ -3396,11 +3401,13 @@ fun TournamentSetupScreen(
                     Button(
                         onClick = { viewModel.clearAllTournaments() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2D55)),
-                        shape = RoundedCornerShape(8.dp)
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                        modifier = Modifier.height(32.dp)
                     ) {
                         Text(
-                            text = if (isAr) "تنظيف السجل بالكامل 🗑️" else "Clear All History 🗑️",
-                            fontSize = 11.sp,
+                            text = if (isAr) "الحذف الكامل 🗑️" else "Delete All 🗑️",
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color.White
                         )
@@ -3846,14 +3853,16 @@ fun TournamentDashboardScreen(
             var losses = 0
             var points = 0
             matches.forEach { m ->
+                val p1Actual = getActualPlayerIndexForMatchStatic(m.player1Idx, matches, players.size)
+                val p2Actual = getActualPlayerIndexForMatchStatic(m.player2Idx, matches, players.size)
                 if (m.winnerIdx != -1) {
-                    if (m.player1Idx == idx) {
+                    if (p1Actual == idx) {
                         when (m.winnerIdx) {
                             0 -> { wins++; points += 3 }
                             2 -> { draws++; points += 1 }
                             1 -> { losses++ }
                         }
-                    } else if (m.player2Idx == idx) {
+                    } else if (p2Actual == idx) {
                         when (m.winnerIdx) {
                             1 -> { wins++; points += 3 }
                             2 -> { draws++; points += 1 }
