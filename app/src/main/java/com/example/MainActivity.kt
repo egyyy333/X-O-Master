@@ -44,6 +44,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Gamepad
@@ -437,42 +438,124 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                DetailedModeCard(
-                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "ضد الكمبيوتر (البوت) 🤖" else "VS Computer (Bot) 🤖",
-                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "العب ضد كمبيوتر ذكي بمستويات متنوعة (سهل، متوسط، مستحيل 🔥) لتطوير تفكيرك الاستراتيجي." else "Play against a smart AI in various levels (Easy, Medium, Impossible 🔥) to sharpen your strategy.",
-                    isSelected = activeMode == "VS_BOT",
-                    theme = appTheme,
-                    onClick = {
-                        triggerClickFeedback()
-                        viewModel.setGameMode("VS_BOT")
+                val isAr = viewModel.appLanguage.collectAsState().value == "AR"
+                val activeBg = if (isLight) Color(0xFF8B5CF6).copy(alpha = 0.08f) else Color(0xFF1A2642)
+                val inactiveBg = if (isLight) Color(0xFFF8FAFC) else Color(0xFF0F1422)
+                val activeBorder = accentColor
+                val inactiveBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Vs Bot
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (activeMode == "VS_BOT") activeBg else inactiveBg,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                BorderStroke(
+                                    if (activeMode == "VS_BOT") 2.dp else 1.dp,
+                                    if (activeMode == "VS_BOT") activeBorder else inactiveBorder
+                                ),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                triggerClickFeedback()
+                                viewModel.setGameMode("VS_BOT")
+                            }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "🤖", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isAr) "ضد البوت" else "Vs Bot",
+                                color = if (activeMode == "VS_BOT") accentColor else textColorPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
                     }
-                )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DetailedModeCard(
-                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "ضد لاعب (ثنائي) 👥" else "Local Multiplayer 👥",
-                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "تحدَّ صديقك على نفس الشاشة بمواجهة مباشرة حماسية، مع إمكانية اختيار ألقاب أسطورية مخصصة لكل منكما." else "Challenge your friend on the same screen in a direct head-to-head battle with epic custom titles.",
-                    isSelected = activeMode == "VS_FRIEND",
-                    theme = appTheme,
-                    onClick = {
-                        triggerClickFeedback()
-                        viewModel.setGameMode("VS_FRIEND")
+                    // Vs Local Player
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (activeMode == "VS_FRIEND") activeBg else inactiveBg,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                BorderStroke(
+                                    if (activeMode == "VS_FRIEND") 2.dp else 1.dp,
+                                    if (activeMode == "VS_FRIEND") activeBorder else inactiveBorder
+                                ),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                triggerClickFeedback()
+                                viewModel.setGameMode("VS_FRIEND")
+                            }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "👥", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isAr) "ضد لاعب" else "Vs Player",
+                                color = if (activeMode == "VS_FRIEND") accentColor else textColorPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
                     }
-                )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                DetailedModeCard(
-                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "البطولة الأسطورية 🏆" else "Epic Tournament 🏆",
-                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "أنشئ بطولة حماسية مخصصة (٤ أو ٨ لاعبين) بنظام خروج المغلوب أو دوري النقاط، مع حفظ كامل النتائج والتواريخ في سجل البطولات." else "Create a custom championship (4 or 8 players) in Knockout or Round Robin format, with complete standings and history saved in the log.",
-                    isSelected = activeMode == "TOURNAMENT",
-                    theme = appTheme,
-                    onClick = {
-                        triggerClickFeedback()
-                        viewModel.setGameMode("TOURNAMENT")
+                    // Tournament
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .background(
+                                if (activeMode == "TOURNAMENT") activeBg else inactiveBg,
+                                RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                BorderStroke(
+                                    if (activeMode == "TOURNAMENT") 2.dp else 1.dp,
+                                    if (activeMode == "TOURNAMENT") activeBorder else inactiveBorder
+                                ),
+                                RoundedCornerShape(12.dp)
+                            )
+                            .clickable {
+                                triggerClickFeedback()
+                                viewModel.setGameMode("TOURNAMENT")
+                            }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "🏆", fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = if (isAr) "البطولة الأسطورية" else "Tournament",
+                                color = if (activeMode == "TOURNAMENT") accentColor else textColorPrimary,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1
+                            )
+                        }
                     }
-                )
+                }
             }
         }
 
@@ -942,7 +1025,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                         .border(1.dp, cardBorderColor, CircleShape)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Refresh,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = Localizer.get("cancel"),
                         tint = textColorPrimary
                     )
@@ -982,16 +1065,24 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                                     .background(Color(0xFF00E5FF).copy(alpha = if (activeX) 0.15f else 0.05f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = null,
-                                    tint = Color(0xFF00E5FF),
-                                    modifier = Modifier.size(22.dp)
+                                Text(
+                                    text = "X",
+                                    color = Color(0xFF00E5FF),
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 20.sp,
+                                    textAlign = TextAlign.Center
                                 )
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = Localizer.get("player_x"), color = textColorPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = viewModel.getPlayer1DisplayName(),
+                            color = textColorPrimary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center
+                        )
                     }
 
                     // VS Circle
@@ -1039,20 +1130,32 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                                     .background(Color(0xFFFF2D55).copy(alpha = if (activeO) 0.15f else 0.05f), CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = if (gameMode == "VS_BOT") Icons.Default.SmartToy else Icons.Default.People,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFF2D55),
-                                    modifier = Modifier.size(22.dp)
-                                )
+                                if (gameMode == "VS_BOT") {
+                                    Icon(
+                                        imageVector = Icons.Default.SmartToy,
+                                        contentDescription = null,
+                                        tint = Color(0xFFFF2D55),
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = "O",
+                                        color = Color(0xFFFF2D55),
+                                        fontWeight = FontWeight.Black,
+                                        fontSize = 20.sp,
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = if (gameMode == "VS_BOT") Localizer.get("bot_o") else Localizer.get("player_o"),
+                            text = viewModel.getPlayer2DisplayName(),
                             color = textColorPrimary,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -1253,7 +1356,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     },
                     modifier = Modifier
                         .weight(1.2f)
-                        .height(48.dp)
+                        .height(54.dp)
                         .testTag("reset_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -1274,7 +1377,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     },
                     modifier = Modifier
                         .weight(1.1f)
-                        .height(48.dp)
+                        .height(54.dp)
                         .testTag("undo_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -1294,7 +1397,7 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
                     },
                     modifier = Modifier
                         .weight(1.2f)
-                        .height(48.dp)
+                        .height(54.dp)
                         .testTag("hint_game_button"),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
@@ -1338,7 +1441,10 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
 // 3. STATS SCREEN (With Battle history & Achievements system)
 @Composable
 fun StatsScreen(viewModel: GameViewModel) {
-    val history by viewModel.history.collectAsState()
+    val historyRaw by viewModel.history.collectAsState()
+    val history = remember(historyRaw) {
+        historyRaw.filter { it.gameMode != "TOURNAMENT" }
+    }
     val appTheme by viewModel.appTheme.collectAsState()
     val isHapticEnabled by viewModel.isHapticEnabled.collectAsState()
 
@@ -3571,6 +3677,150 @@ fun TournamentSetupScreen(
     }
 }
 
+private fun getActualPlayerIndexForMatchStatic(idx: Int, matches: List<com.example.ui.TournamentMatch>, playerCount: Int): Int {
+    if (idx < playerCount) {
+        return idx
+    }
+    val matchIdx = idx - playerCount
+    if (matchIdx >= 0 && matchIdx < matches.size) {
+        val m = matches[matchIdx]
+        if (m.winnerIdx == 0) {
+            return getActualPlayerIndexForMatchStatic(m.player1Idx, matches, playerCount)
+        } else if (m.winnerIdx == 1) {
+            return getActualPlayerIndexForMatchStatic(m.player2Idx, matches, playerCount)
+        }
+    }
+    return -1
+}
+
+@Composable
+fun KnockoutBracketView(
+    players: List<Pair<String, String>>,
+    matches: List<com.example.ui.TournamentMatch>,
+    currentIndex: Int,
+    isAr: Boolean,
+    textColorPrimary: Color,
+    textColorSecondary: Color,
+    accentColor: Color,
+    cardBgColor: Color,
+    cardBorderColor: Color
+) {
+    val is8Players = players.size == 8
+    val rounds = if (is8Players) {
+        listOf(
+            (if (isAr) "ربع النهائي ⚔️" else "Quarter-Finals ⚔️") to matches.subList(0, 4),
+            (if (isAr) "نصف النهائي 🏆" else "Semi-Finals 🏆") to matches.subList(4, 6),
+            (if (isAr) "النهائي الكبير 👑" else "Grand Final 👑") to matches.subList(6, 7)
+        )
+    } else {
+        listOf(
+            (if (isAr) "نصف النهائي 🏆" else "Semi-Finals 🏆") to matches.subList(0, 2),
+            (if (isAr) "النهائي الكبير 👑" else "Grand Final 👑") to matches.subList(2, 3)
+        )
+    }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        for ((roundTitle, roundMatches) in rounds) {
+            Text(
+                text = roundTitle,
+                color = accentColor,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                for (match in roundMatches) {
+                    val p1IdxResolved = getActualPlayerIndexForMatchStatic(match.player1Idx, matches, players.size)
+                    val p2IdxResolved = getActualPlayerIndexForMatchStatic(match.player2Idx, matches, players.size)
+                    
+                    val p1Name = if (p1IdxResolved in players.indices) players[p1IdxResolved].first else "?"
+                    val p2Name = if (p2IdxResolved in players.indices) players[p2IdxResolved].first else "?"
+                    
+                    val p1Title = if (p1IdxResolved in players.indices) players[p1IdxResolved].second else ""
+                    val p2Title = if (p2IdxResolved in players.indices) players[p2IdxResolved].second else ""
+                    
+                    val isMatchPlayed = match.winnerIdx != -1
+                    val matchGlobalIndex = matches.indexOf(match)
+                    val isCurrentPlaying = matchGlobalIndex == currentIndex
+
+                    val borderCol = if (isCurrentPlaying) accentColor else if (isMatchPlayed) cardBorderColor.copy(alpha = 0.5f) else cardBorderColor
+
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .border(BorderStroke(if (isCurrentPlaying) 2.dp else 1.dp, borderCol), RoundedCornerShape(12.dp)),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (isCurrentPlaying) accentColor.copy(alpha = 0.05f) else cardBgColor
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(10.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            // Player 1 Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    if (p1Title.isNotEmpty()) {
+                                        Text(text = p1Title, fontSize = 8.sp, color = accentColor, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                    }
+                                    Text(
+                                        text = p1Name,
+                                        fontSize = 11.sp,
+                                        color = if (isMatchPlayed && match.winnerIdx == 0) Color(0xFF00E5FF) else textColorPrimary,
+                                        fontWeight = if (isMatchPlayed && match.winnerIdx == 0) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                                if (isMatchPlayed && match.winnerIdx == 0) {
+                                    Text(text = "✓", color = Color(0xFF00E5FF), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(text = "vs", fontSize = 9.sp, color = textColorSecondary, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+
+                            // Player 2 Row
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    if (p2Title.isNotEmpty()) {
+                                        Text(text = p2Title, fontSize = 8.sp, color = accentColor, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                                    }
+                                    Text(
+                                        text = p2Name,
+                                        fontSize = 11.sp,
+                                        color = if (isMatchPlayed && match.winnerIdx == 1) Color(0xFFFF2D55) else textColorPrimary,
+                                        fontWeight = if (isMatchPlayed && match.winnerIdx == 1) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                }
+                                if (isMatchPlayed && match.winnerIdx == 1) {
+                                    Text(text = "✓", color = Color(0xFFFF2D55), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun TournamentDashboardScreen(
     viewModel: com.example.ui.GameViewModel,
@@ -3652,15 +3902,27 @@ fun TournamentDashboardScreen(
                 fontWeight = FontWeight.ExtraBold,
                 color = textColorPrimary
             )
-            Spacer(modifier = Modifier.size(48.dp))
+            IconButton(
+                onClick = {
+                    viewModel.clearActiveTournament()
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = if (isAr) "إلغاء البطولة" else "Cancel Tournament",
+                    tint = Color(0xFFFF2D55)
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         if (currentIndex in matches.indices) {
             val currentMatch = matches[currentIndex]
-            val p1 = players[currentMatch.player1Idx]
-            val p2 = players[currentMatch.player2Idx]
+            val p1IdxActual = getActualPlayerIndexForMatchStatic(currentMatch.player1Idx, matches, players.size)
+            val p2IdxActual = getActualPlayerIndexForMatchStatic(currentMatch.player2Idx, matches, players.size)
+            val p1 = if (p1IdxActual in players.indices) players[p1IdxActual] else Pair("?", "")
+            val p2 = if (p2IdxActual in players.indices) players[p2IdxActual] else Pair("?", "")
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -3730,31 +3992,55 @@ fun TournamentDashboardScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        val tournamentType by viewModel.tournamentType.collectAsState()
+
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = cardBgColor),
             border = BorderStroke(1.dp, cardBorderColor)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = if (isAr) "ترتيب المتنافسين 🏆" else "Standings 🏆",
-                    color = textColorPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                if (tournamentType == "KNOCKOUT") {
+                    Text(
+                        text = if (isAr) "شجرة مواجهات البطولة (خروج المغلوب) 🏆" else "Tournament Bracket Tree (Knockout) 🏆",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    KnockoutBracketView(
+                        players = players,
+                        matches = matches,
+                        currentIndex = currentIndex,
+                        isAr = isAr,
+                        textColorPrimary = textColorPrimary,
+                        textColorSecondary = textColorSecondary,
+                        accentColor = accentColor,
+                        cardBgColor = cardBgColor,
+                        cardBorderColor = cardBorderColor
+                    )
+                } else {
+                    Text(
+                        text = if (isAr) "ترتيب المتنافسين 🏆" else "Standings 🏆",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(text = if (isAr) "اللاعب" else "Player", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(2f))
-                    Text(text = if (isAr) "فوز" else "W", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
-                    Text(text = if (isAr) "تعادل" else "D", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
-                    Text(text = if (isAr) "نقاط" else "Pts", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = if (isAr) "اللاعب" else "Player", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(2f))
+                        Text(text = if (isAr) "فوز" else "W", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
+                        Text(text = if (isAr) "تعادل" else "D", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
+                        Text(text = if (isAr) "خسارة" else "L", color = textColorSecondary, fontSize = 12.sp, modifier = Modifier.weight(0.5f), textAlign = TextAlign.Center)
+                        Text(text = if (isAr) "نقاط" else "Pts", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.8f), textAlign = TextAlign.End)
+                    }
+
+                    StandingsList(standings = standings, isAr = isAr, textColorPrimary = textColorPrimary, textColorSecondary = textColorSecondary, accentColor = accentColor)
                 }
-
-                StandingsList(standings = standings, isAr = isAr, textColorPrimary = textColorPrimary, textColorSecondary = textColorSecondary, accentColor = accentColor)
             }
         }
 
@@ -3775,8 +4061,10 @@ fun TournamentDashboardScreen(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 matches.forEachIndexed { idx, m ->
-                    val p1 = players[m.player1Idx]
-                    val p2 = players[m.player2Idx]
+                    val p1IdxActual = getActualPlayerIndexForMatchStatic(m.player1Idx, matches, players.size)
+                    val p2IdxActual = getActualPlayerIndexForMatchStatic(m.player2Idx, matches, players.size)
+                    val p1 = if (p1IdxActual in players.indices) players[p1IdxActual] else Pair("?", "")
+                    val p2 = if (p2IdxActual in players.indices) players[p2IdxActual] else Pair("?", "")
                     val isPlayed = m.winnerIdx != -1
                     val statusText = if (isPlayed) {
                         if (m.winnerIdx == 2) {

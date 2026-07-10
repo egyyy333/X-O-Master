@@ -53,7 +53,7 @@ object Localizer {
             "turn_bot" -> if (isAr) "جاري تفكير البوت..." else "Bot is calculating..."
             "turn_player" -> if (isAr) "دور اللاعب %s الآن" else "Player %s's turn"
             "game_over" -> if (isAr) "الجولة انتهت!" else "Round Over!"
-            "re_round" -> if (isAr) "إعادة جولة" else "Reset Round"
+            "re_round" -> if (isAr) "إعادة الجولة" else "Reset Round"
             "undo" -> if (isAr) "تراجع" else "Undo"
             "hint" -> if (isAr) "تلميح" else "Hint"
             "stats_title" -> if (isAr) "سجل الانتصارات والإنجازات" else "Battle Records & Achievements"
@@ -83,7 +83,7 @@ object Localizer {
             "confirm_reset_desc" -> if (isAr) "هذا الإجراء سيقوم بحذف جميع البيانات بشكل نهائي ولا يمكن التراجع عنه!" else "This action will permanently delete all your data and cannot be undone!"
             "cancel" -> if (isAr) "إلغاء" else "Cancel"
             "confirm" -> if (isAr) "تأكيد" else "Confirm"
-            "win_congrats" -> if (isAr) "تهانينا! فوز ساحق" else "Victory! Spectacular Win"
+            "win_congrats" -> if (isAr) "تهانينا!" else "Victory!"
             "win_bot" -> if (isAr) "البوت انتصر!" else "AI Bot Triumphed!"
             "draw_title" -> if (isAr) "تعادل عادل!" else "Fair Draw!"
             "win_desc" -> if (isAr) "لقد انتهت الجولة بانتصار أسطوري!" else "The round ended with a legendary win!"
@@ -229,6 +229,9 @@ class GameViewModel(
     private val _activeTournamentId = MutableStateFlow<Long?>(null)
     val activeTournamentId: StateFlow<Long?> = _activeTournamentId.asStateFlow()
 
+    private val _tournamentType = MutableStateFlow("LEAGUE")
+    val tournamentType: StateFlow<String> = _tournamentType.asStateFlow()
+
     private val _tournamentPlayers = MutableStateFlow<List<Pair<String, String>>>(emptyList())
     val tournamentPlayers: StateFlow<List<Pair<String, String>>> = _tournamentPlayers.asStateFlow()
 
@@ -331,8 +334,9 @@ class GameViewModel(
     val highlightedCell: StateFlow<Int?> = _highlightedCell.asStateFlow()
 
     // Remaining hint count
-    private val _hintCount = MutableStateFlow(3)
-    val hintCount: StateFlow<Int> = _hintCount.asStateFlow()
+    val hintCount: StateFlow<Int> = kotlinx.coroutines.flow.combine(_currentTurn, _p1HintCount, _p2HintCount) { turn, p1, p2 ->
+        if (turn == "X") p1 else p2
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
     val botSymbol: String
         get() = if (_playerSymbol.value == "X") "O" else "X"
@@ -548,7 +552,11 @@ class GameViewModel(
             while (true) {
                 delay(1000)
                 if (!_isGameOver.value && !_isBotThinking.value) {
-                    val isP1 = _currentTurn.value == "X"
+                    val isP1 = if (_gameMode.value == "VS_BOT") {
+                        _currentTurn.value == _playerSymbol.value
+                    } else {
+                        _currentTurn.value == "X"
+                    }
                     if (isP1) {
                         _p1ThinkingSeconds.value += 1
                     } else {
@@ -584,8 +592,7 @@ class GameViewModel(
     }
 
     fun isLeague(): Boolean {
-        // Simple helper to check if tournament type is LEAGUE
-        return true
+        return _tournamentType.value == "LEAGUE"
     }
 
     fun onCellClick(index: Int) {
@@ -799,6 +806,7 @@ class GameViewModel(
         players: List<Pair<String, String>>
     ) {
         _tournamentPlayers.value = players
+        _tournamentType.value = type
         _currentTournamentMatchIndex.value = 0
         _isTournamentReplay.value = false
         _tournamentTieBreakerInfo.value = null
@@ -815,14 +823,25 @@ class GameViewModel(
             }
             generated.shuffle()
         } else {
-            var i = 0
-            while (i < players.size) {
-                if (i + 1 < players.size) {
-                    generated.add(TournamentMatch(player1Idx = i, player2Idx = i + 1))
-                } else {
-                    generated.add(TournamentMatch(player1Idx = i, player2Idx = i, winnerIdx = 0))
-                }
-                i += 2
+            // KNOCKOUT MATCH GENERATION
+            if (players.size == 8) {
+                // Quarter-finals
+                generated.add(TournamentMatch(player1Idx = 0, player2Idx = 1))
+                generated.add(TournamentMatch(player1Idx = 2, player2Idx = 3))
+                generated.add(TournamentMatch(player1Idx = 4, player2Idx = 5))
+                generated.add(TournamentMatch(player1Idx = 6, player2Idx = 7))
+                // Semi-finals (virtual indices 8, 9, 10, 11 represent winners of Match 0, 1, 2, 3 respectively)
+                generated.add(TournamentMatch(player1Idx = 8, player2Idx = 9))
+                generated.add(TournamentMatch(player1Idx = 10, player2Idx = 11))
+                // Final (virtual indices 12, 13 represent winners of Match 4, 5 respectively)
+                generated.add(TournamentMatch(player1Idx = 12, player2Idx = 13))
+            } else {
+                // Default to 4 players (since tournament setup only allows 4 or 8)
+                // Semi-finals
+                generated.add(TournamentMatch(player1Idx = 0, player2Idx = 1))
+                generated.add(TournamentMatch(player1Idx = 2, player2Idx = 3))
+                // Final (virtual indices 4, 5 represent winners of Match 0, 1 respectively)
+                generated.add(TournamentMatch(player1Idx = 4, player2Idx = 5))
             }
         }
 
@@ -844,13 +863,34 @@ class GameViewModel(
         setupActiveTournamentMatch()
     }
 
+    fun getActualPlayerIndexForMatch(virtualIdx: Int, matches: List<TournamentMatch>): Int {
+        if (virtualIdx < 0) return -1
+        val playerCount = if (matches.size == 3) 4 else 8
+        if (virtualIdx < playerCount) {
+            return virtualIdx
+        }
+        val parentMatchIdx = virtualIdx - playerCount
+        if (parentMatchIdx in matches.indices) {
+            val parentMatch = matches[parentMatchIdx]
+            if (parentMatch.winnerIdx == 0) {
+                return getActualPlayerIndexForMatch(parentMatch.player1Idx, matches)
+            } else if (parentMatch.winnerIdx == 1) {
+                return getActualPlayerIndexForMatch(parentMatch.player2Idx, matches)
+            }
+        }
+        return -1
+    }
+
     private fun setupActiveTournamentMatch() {
         val idx = _currentTournamentMatchIndex.value
         val matches = _tournamentMatches.value
         if (idx in matches.indices) {
             val match = matches[idx]
-            val p1 = _tournamentPlayers.value[match.player1Idx]
-            val p2 = _tournamentPlayers.value[match.player2Idx]
+            val p1Idx = getActualPlayerIndexForMatch(match.player1Idx, matches)
+            val p2Idx = getActualPlayerIndexForMatch(match.player2Idx, matches)
+
+            val p1 = if (p1Idx in _tournamentPlayers.value.indices) _tournamentPlayers.value[p1Idx] else Pair("?", "?")
+            val p2 = if (p2Idx in _tournamentPlayers.value.indices) _tournamentPlayers.value[p2Idx] else Pair("?", "?")
 
             _p1Name.value = p1.first
             _p1Title.value = p1.second
@@ -892,6 +932,7 @@ class GameViewModel(
         _activeTournamentId.value = tournament.id
         _tournamentPlayers.value = deserializePlayers(tournament.playersData)
         _tournamentMatches.value = deserializeMatches(tournament.matchesData)
+        _tournamentType.value = tournament.type
         _currentTournamentMatchIndex.value = tournament.currentMatchIndex
         _isTournamentReplay.value = false
         _tournamentTieBreakerInfo.value = null
@@ -976,8 +1017,10 @@ class GameViewModel(
                 match.p1Hints = totalHints1
                 match.p2Hints = totalHints2
 
-                val p1NameStr = _tournamentPlayers.value[match.player1Idx].first
-                val p2NameStr = _tournamentPlayers.value[match.player2Idx].first
+                val p1Actual = getActualPlayerIndexForMatch(match.player1Idx, _tournamentMatches.value)
+                val p2Actual = getActualPlayerIndexForMatch(match.player2Idx, _tournamentMatches.value)
+                val p1NameStr = if (p1Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p1Actual].first else "?"
+                val p2NameStr = if (p2Actual in _tournamentPlayers.value.indices) _tournamentPlayers.value[p2Actual].first else "?"
                 val winnerNameStr = if (wonIdx == 0) p1NameStr else p2NameStr
 
                 val tieBreakerText = if (Localizer.currentLanguage == "AR") {
@@ -1045,26 +1088,44 @@ class GameViewModel(
         val players = _tournamentPlayers.value
         if (players.isEmpty()) return ""
 
-        val points = IntArray(players.size) { 0 }
-        for (m in matches) {
-            if (m.winnerIdx == 0) {
-                points[m.player1Idx] += 3
-            } else if (m.winnerIdx == 1) {
-                points[m.player2Idx] += 3
+        val type = _tournamentType.value
+        if (type == "KNOCKOUT") {
+            val finalMatch = matches.lastOrNull() ?: return ""
+            val winnerIdx = finalMatch.winnerIdx
+            val actualWinnerIdx = if (winnerIdx == 0) {
+                getActualPlayerIndexForMatch(finalMatch.player1Idx, matches)
+            } else if (winnerIdx == 1) {
+                getActualPlayerIndexForMatch(finalMatch.player2Idx, matches)
+            } else {
+                -1
             }
-        }
-
-        var maxPoints = -1
-        var bestIdx = 0
-        for (i in points.indices) {
-            if (points[i] > maxPoints) {
-                maxPoints = points[i]
-                bestIdx = i
+            if (actualWinnerIdx in players.indices) {
+                val champ = players[actualWinnerIdx]
+                return "${champ.second} ${champ.first}".trim()
             }
-        }
+            return ""
+        } else {
+            val points = IntArray(players.size) { 0 }
+            for (m in matches) {
+                if (m.winnerIdx == 0) {
+                    points[m.player1Idx] += 3
+                } else if (m.winnerIdx == 1) {
+                    points[m.player2Idx] += 3
+                }
+            }
 
-        val champ = players[bestIdx]
-        return "${champ.second} ${champ.first}".trim()
+            var maxPoints = -1
+            var bestIdx = 0
+            for (i in points.indices) {
+                if (points[i] > maxPoints) {
+                    maxPoints = points[i]
+                    bestIdx = i
+                }
+            }
+
+            val champ = players[bestIdx]
+            return "${champ.second} ${champ.first}".trim()
+        }
     }
 
     fun clearHistory() {
