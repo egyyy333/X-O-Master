@@ -77,6 +77,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.layout.heightIn
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -435,49 +437,42 @@ fun HomeScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ModeButton(
-                        label = Localizer.get("mode_bot"),
-                        icon = Icons.Default.SmartToy,
-                        isSelected = activeMode == "VS_BOT",
-                        theme = appTheme,
-                        modifier = Modifier.weight(1f),
-                        onClick = { 
-                            triggerClickFeedback()
-                            viewModel.setGameMode("VS_BOT") 
-                        },
-                        testTag = "mode_bot_button"
-                    )
+                DetailedModeCard(
+                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "ضد الكمبيوتر (البوت) 🤖" else "VS Computer (Bot) 🤖",
+                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "العب ضد كمبيوتر ذكي بمستويات متنوعة (سهل، متوسط، مستحيل 🔥) لتطوير تفكيرك الاستراتيجي." else "Play against a smart AI in various levels (Easy, Medium, Impossible 🔥) to sharpen your strategy.",
+                    isSelected = activeMode == "VS_BOT",
+                    theme = appTheme,
+                    onClick = {
+                        triggerClickFeedback()
+                        viewModel.setGameMode("VS_BOT")
+                    }
+                )
 
-                    ModeButton(
-                        label = Localizer.get("mode_friend"),
-                        icon = Icons.Default.People,
-                        isSelected = activeMode == "VS_FRIEND",
-                        theme = appTheme,
-                        modifier = Modifier.weight(1f),
-                        onClick = { 
-                            triggerClickFeedback()
-                            viewModel.setGameMode("VS_FRIEND") 
-                        },
-                        testTag = "mode_friend_button"
-                    )
+                Spacer(modifier = Modifier.height(8.dp))
 
-                    ModeButton(
-                        label = Localizer.get("mode_tournament"),
-                        icon = Icons.Default.EmojiEvents,
-                        isSelected = activeMode == "TOURNAMENT",
-                        theme = appTheme,
-                        modifier = Modifier.weight(1f),
-                        onClick = { 
-                            triggerClickFeedback()
-                            viewModel.setGameMode("TOURNAMENT") 
-                        },
-                        testTag = "mode_tournament_button"
-                    )
-                }
+                DetailedModeCard(
+                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "ضد لاعب (ثنائي) 👥" else "Local Multiplayer 👥",
+                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "تحدَّ صديقك على نفس الشاشة بمواجهة مباشرة حماسية، مع إمكانية اختيار ألقاب أسطورية مخصصة لكل منكما." else "Challenge your friend on the same screen in a direct head-to-head battle with epic custom titles.",
+                    isSelected = activeMode == "VS_FRIEND",
+                    theme = appTheme,
+                    onClick = {
+                        triggerClickFeedback()
+                        viewModel.setGameMode("VS_FRIEND")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                DetailedModeCard(
+                    title = if (viewModel.appLanguage.collectAsState().value == "AR") "البطولة الأسطورية 🏆" else "Epic Tournament 🏆",
+                    desc = if (viewModel.appLanguage.collectAsState().value == "AR") "أنشئ بطولة حماسية مخصصة (٤ أو ٨ لاعبين) بنظام خروج المغلوب أو دوري النقاط، مع حفظ كامل النتائج والتواريخ في سجل البطولات." else "Create a custom championship (4 or 8 players) in Knockout or Round Robin format, with complete standings and history saved in the log.",
+                    isSelected = activeMode == "TOURNAMENT",
+                    theme = appTheme,
+                    onClick = {
+                        triggerClickFeedback()
+                        viewModel.setGameMode("TOURNAMENT")
+                    }
+                )
             }
         }
 
@@ -688,58 +683,7 @@ fun HomeScreen(
             }
         }
 
-        // Step 3: Choose Symbol (X or O)
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .widthIn(max = 500.dp)
-                .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = cardBgColor),
-            border = BorderStroke(1.dp, cardBorderColor)
-        ) {
-            Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = Localizer.get("symbol_title"),
-                    color = accentColor,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 16.sp,
-                    modifier = Modifier.align(Alignment.Start)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SymbolSelectButton(
-                        symbol = "X",
-                        color = Color(0xFF00E5FF),
-                        isSelected = chosenSymbol == "X",
-                        theme = appTheme,
-                        onClick = { 
-                            triggerClickFeedback()
-                            viewModel.setPlayerSymbol("X") 
-                        },
-                        testTag = "symbol_x_select"
-                    )
-
-                    SymbolSelectButton(
-                        symbol = "O",
-                        color = Color(0xFFFF2D55),
-                        isSelected = chosenSymbol == "O",
-                        theme = appTheme,
-                        onClick = { 
-                            triggerClickFeedback()
-                            viewModel.setPlayerSymbol("O") 
-                        },
-                        testTag = "symbol_o_select"
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
         // Start Adventure Play Button
         Button(
@@ -821,6 +765,55 @@ fun ModeButton(
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+fun DetailedModeCard(
+    title: String,
+    desc: String,
+    isSelected: Boolean,
+    theme: String,
+    onClick: () -> Unit
+) {
+    val isLight = theme == "LIGHT"
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    
+    val activeBorder = accentColor
+    val inactiveBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    
+    val activeBg = if (isLight) Color(0xFF8B5CF6).copy(alpha = 0.08f) else Color(0xFF1A2642)
+    val inactiveBg = if (isLight) Color(0xFFF8FAFC) else Color(0xFF0F1422)
+
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(if (isSelected) activeBg else inactiveBg, RoundedCornerShape(16.dp))
+            .border(
+                BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) activeBorder else inactiveBorder),
+                RoundedCornerShape(16.dp)
+            )
+            .clickable { onClick() }
+            .padding(16.dp)
+    ) {
+        Column {
+            Text(
+                text = title,
+                color = if (isSelected) accentColor else textColorPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = desc,
+                color = textColorSecondary,
+                fontSize = 12.sp,
+                lineHeight = 16.sp
             )
         }
     }
@@ -1811,12 +1804,20 @@ fun HistoryItemCard(record: GameRecord, theme: String) {
     val isTie = record.winnerSymbol == null
 
     val statusText = when {
+        record.gameMode == "FRIEND" -> {
+            if (record.winnerSymbol != null) {
+                record.winnerName ?: ""
+            } else {
+                if (Localizer.currentLanguage == "AR") "تعادل عادل" else "Fair Draw"
+            }
+        }
         isWin -> Localizer.get("stats_wins")
         isTie -> Localizer.get("stats_draws")
         else -> Localizer.get("stats_losses")
     }
 
     val statusColor = when {
+        record.gameMode == "FRIEND" && record.winnerSymbol != null -> Color(0xFF4ADE80)
         isWin -> Color(0xFF4ADE80)
         isTie -> Color(0xFF94A3B8)
         else -> Color(0xFFFF2D55)
@@ -1827,7 +1828,7 @@ fun HistoryItemCard(record: GameRecord, theme: String) {
         "BOT_MEDIUM" -> Localizer.get("difficulty_medium")
         "BOT_HARD" -> Localizer.get("difficulty_hard")
         "FRIEND" -> Localizer.get("mode_friend")
-        else -> "Battle"
+        else -> if (Localizer.currentLanguage == "AR") "مباراة بطولة 🏆" else "Tournament Match 🏆"
     }
 
     val formattedDate = remember(record.timestamp) {
@@ -2446,11 +2447,38 @@ fun VictoryOverlay(
                     }
                 }
 
-                Box(modifier = Modifier.size(90.dp * glowScale)) {
-                    if (winner == "X") {
-                        XSymbol(modifier = Modifier.fillMaxSize(), color = Color(0xFF00E5FF))
-                    } else if (winner == "O") {
-                        OSymbol(modifier = Modifier.fillMaxSize(), color = Color(0xFFFF2D55))
+                Box(
+                    modifier = Modifier.size(140.dp * glowScale),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (winner != null) {
+                        val wName = if (winner == "X") viewModel.getPlayer1DisplayName() else viewModel.getPlayer2DisplayName()
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(titleColor.copy(alpha = 0.08f), androidx.compose.foundation.shape.CircleShape)
+                                .border(BorderStroke(2.dp, titleColor), androidx.compose.foundation.shape.CircleShape)
+                                .padding(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.EmojiEvents,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = wName,
+                                color = textColorPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     } else {
                         Canvas(modifier = Modifier.fillMaxSize()) {
                             val w = size.width
@@ -2576,35 +2604,134 @@ fun VictoryOverlay(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Buttons
-            Button(
-                onClick = onPlayAgain,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = if (isLight) Color.White else Color(0xFF090C15)
-                )
-            ) {
-                Text(text = Localizer.get("play_again"), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            }
+            val isArLanguage = viewModel.appLanguage.collectAsState().value == "AR"
+            if (gameMode == "TOURNAMENT") {
+                val matches by viewModel.tournamentMatches.collectAsState()
+                val currentIndex by viewModel.currentTournamentMatchIndex.collectAsState()
+                val isReplay by viewModel.isTournamentReplay.collectAsState()
+                
+                if (isReplay) {
+                    // Tie break replay is active
+                    Button(
+                        onClick = onPlayAgain,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = if (isLight) Color.White else Color(0xFF090C15)
+                        )
+                    ) {
+                        Text(
+                            text = if (isArLanguage) "إعادة المباراة لحسم التعادل ⚔️" else "Replay Match to Break Tie ⚔️",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-            Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-            Button(
-                onClick = onMainMenu,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.Transparent,
-                    contentColor = textColorPrimary
-                ),
-                border = BorderStroke(1.dp, cardBorder)
-            ) {
-                Text(text = Localizer.get("main_menu"), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    Button(
+                        onClick = onMainMenu,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = textColorPrimary
+                        ),
+                        border = BorderStroke(1.dp, cardBorder)
+                    ) {
+                        Text(
+                            text = if (isArLanguage) "العودة للقائمة الرئيسية" else "Back to Main Menu",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                } else {
+                    // Match completed
+                    val isLastMatch = currentIndex == matches.size - 1
+                    Button(
+                        onClick = {
+                            viewModel.proceedToNextTournamentMatch()
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = if (isLight) Color.White else Color(0xFF090C15)
+                        )
+                    ) {
+                        Text(
+                            text = if (isLastMatch) {
+                                if (isArLanguage) "تتويج بطل البطولة وإعلانه 🏆" else "Announce & Crown Champion 🏆"
+                            } else {
+                                if (isArLanguage) "الانتقال للمباراة التالية ⚔️" else "Proceed to Next Match ⚔️"
+                            },
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    Button(
+                        onClick = {
+                            viewModel.proceedToNextTournamentMatch()
+                            onMainMenu() // Sets showDashboard = true
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(26.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = textColorPrimary
+                        ),
+                        border = BorderStroke(1.dp, cardBorder)
+                    ) {
+                        Text(
+                            text = if (isArLanguage) "لوحة صدارة البطولة 📊" else "Tournament Standings 📊",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else {
+                Button(
+                    onClick = onPlayAgain,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = accentColor,
+                        contentColor = if (isLight) Color.White else Color(0xFF090C15)
+                    )
+                ) {
+                    Text(text = Localizer.get("play_again"), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = onMainMenu,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(26.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = textColorPrimary
+                    ),
+                    border = BorderStroke(1.dp, cardBorder)
+                ) {
+                    Text(text = Localizer.get("main_menu"), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -2720,6 +2847,309 @@ fun StandingsList(
 }
 
 @Composable
+fun TournamentDetailsDialog(
+    tournament: com.example.data.Tournament,
+    viewModel: com.example.ui.GameViewModel,
+    onDismiss: () -> Unit,
+    onResume: () -> Unit
+) {
+    val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
+    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
+    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val cardBg = if (isLight) Color.White else Color(0xFF121829)
+    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val isAr = viewModel.appLanguage.collectAsState().value == "AR"
+
+    val players = remember(tournament) { com.example.ui.deserializePlayers(tournament.playersData) }
+    val matches = remember(tournament) { com.example.ui.deserializeMatches(tournament.matchesData) }
+
+    val standings = remember(players, matches) {
+        players.indices.map { idx ->
+            var wins = 0
+            var draws = 0
+            var losses = 0
+            var points = 0
+            matches.forEach { m ->
+                if (m.winnerIdx != -1) {
+                    if (m.player1Idx == idx) {
+                        when (m.winnerIdx) {
+                            0 -> { wins++; points += 3 }
+                            2 -> { draws++; points += 1 }
+                            1 -> { losses++ }
+                        }
+                    } else if (m.player2Idx == idx) {
+                        when (m.winnerIdx) {
+                            1 -> { wins++; points += 3 }
+                            2 -> { draws++; points += 1 }
+                            0 -> { losses++ }
+                        }
+                    }
+                }
+            }
+            StandingRow(
+                playerIdx = idx,
+                name = players[idx].first,
+                title = players[idx].second,
+                wins = wins,
+                draws = draws,
+                losses = losses,
+                points = points
+            )
+        }.sortedByDescending { it.points }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = cardBg),
+            border = BorderStroke(1.dp, cardBorder),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isAr) "تفاصيل بطولة: ${tournament.name}" else "Tournament: ${tournament.name}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = textColorPrimary
+                )
+                Text(
+                    text = if (isAr) "نوع البطولة: ${if (tournament.type == "KNOCKOUT") "خروج المغلوب ⚔️" else "دوري نقاط 📊"}" else "Format: ${tournament.type}",
+                    fontSize = 12.sp,
+                    color = accentColor,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .heightIn(max = 240.dp)
+                        .fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                        // Display Standings Table
+                        Text(
+                            text = if (isAr) "جدول الترتيب الحالي 🏆" else "Current Standings 🏆",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = textColorPrimary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+                        
+                        standings.forEachIndexed { rank, row ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .background(if (rank % 2 == 0) accentColor.copy(alpha = 0.04f) else Color.Transparent, RoundedCornerShape(4.dp))
+                                    .padding(6.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "${rank + 1}. [${row.title}] ${row.name}",
+                                    color = textColorPrimary,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = "Pts: ${row.points} (${row.wins}W - ${row.draws}D)",
+                                    color = textColorSecondary,
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Display Matches
+                        Text(
+                            text = if (isAr) "نتائج المباريات ⚔️" else "Matches Log ⚔️",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp,
+                            color = textColorPrimary,
+                            modifier = Modifier.padding(bottom = 8.dp)
+                        )
+
+                        matches.forEachIndexed { mIdx, m ->
+                            val p1 = players[m.player1Idx]
+                            val p2 = players[m.player2Idx]
+                            val resultText = when (m.winnerIdx) {
+                                0 -> if (isAr) "فوز ${p1.first}" else "${p1.first} Won"
+                                1 -> if (isAr) "فوز ${p2.first}" else "${p2.first} Won"
+                                2 -> if (isAr) "تعادل" else "Draw"
+                                else -> if (isAr) "قيد الانتظار ⏳" else "Pending ⏳"
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                                    .border(BorderStroke(1.dp, cardBorder.copy(alpha = 0.5f)), RoundedCornerShape(8.dp))
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "M${mIdx + 1}: ${p1.first} vs ${p2.first}",
+                                    color = textColorPrimary,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.weight(1.5f),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = resultText,
+                                    color = if (m.winnerIdx != -1) accentColor else textColorSecondary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = TextAlign.End
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = cardBorder, contentColor = textColorPrimary),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(text = if (isAr) "إغلاق" else "Close")
+                    }
+
+                    if (tournament.winnerName == null) {
+                        Button(
+                            onClick = {
+                                onResume()
+                                onDismiss()
+                            },
+                            modifier = Modifier.weight(1.5f),
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = if (isLight) Color.White else Color(0xFF090C15)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(text = if (isAr) "استكمال البطولة ⚔️" else "Resume ⚔️")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TournamentHistoryItemCard(
+    tournament: com.example.data.Tournament,
+    theme: String,
+    onDelete: () -> Unit,
+    onClick: () -> Unit
+) {
+    val isLight = theme == "LIGHT"
+    val isAr = Localizer.currentLanguage == "AR"
+
+    val statusText = if (tournament.winnerName != null) {
+        tournament.winnerName
+    } else {
+        if (isAr) "غير مكتملة" else "In Progress"
+    }
+
+    val statusColor = if (tournament.winnerName != null) {
+        Color(0xFF4ADE80)
+    } else {
+        Color(0xFF94A3B8)
+    }
+
+    val formattedDate = remember(tournament.timestamp) {
+        try {
+            val sdf = SimpleDateFormat("yyyy/MM/dd HH:mm", Locale.getDefault())
+            sdf.format(Date(tournament.timestamp))
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .widthIn(max = 500.dp)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = if (isLight) Color.White else Color(0xFF0F1422)),
+        border = BorderStroke(1.dp, if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B).copy(alpha = 0.5f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (isAr) "بطولة: ${tournament.name}" else "Tournament: ${tournament.name}",
+                    color = if (isLight) Color(0xFF0F172A) else Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${if (tournament.type == "KNOCKOUT") (if (isAr) "خروج المغلوب" else "Knockout") else (if (isAr) "دوري نقاط" else "Round Robin")} | $formattedDate",
+                    color = if (isLight) Color(0xFF64748B) else Color(0xFF475569),
+                    fontSize = 11.sp
+                )
+            }
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(statusColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                        .border(BorderStroke(1.dp, statusColor.copy(alpha = 0.4f)), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = statusText ?: "",
+                        color = statusColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                IconButton(onClick = onDelete) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Delete",
+                        tint = Color(0xFFFF2D55)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun TournamentSetupScreen(
     viewModel: com.example.ui.GameViewModel,
     onBack: () -> Unit
@@ -2731,6 +3161,10 @@ fun TournamentSetupScreen(
     val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
     val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
     val isAr = viewModel.appLanguage.collectAsState().value == "AR"
+
+    var isHistoryView by remember { mutableStateOf(false) }
+    var selectedTournament by remember { mutableStateOf<com.example.data.Tournament?>(null) }
+    val savedTournaments by viewModel.tournamentsList.collectAsState()
 
     var tournamentName by remember { mutableStateOf(if (isAr) "بطولة النخبة 🏆" else "Elite Championship 🏆") }
     var playerCount by remember { mutableStateOf(4) }
@@ -2778,224 +3212,362 @@ fun TournamentSetupScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = cardBgColor),
-            border = BorderStroke(1.dp, cardBorderColor)
+        // Tabs Toggle: New Tournament vs History
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        if (!isHistoryView) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        BorderStroke(
+                            if (!isHistoryView) 2.dp else 1.dp,
+                            if (!isHistoryView) accentColor else cardBorderColor
+                        ),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { isHistoryView = false }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = if (isAr) "اسم البطولة:" else "Tournament Name:",
-                    color = textColorPrimary,
+                    text = if (isAr) "بطولة جديدة ⚔️" else "New Tournament ⚔️",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    color = if (!isHistoryView) accentColor else textColorSecondary
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                CustomTextField(
-                    value = tournamentName,
-                    onValueChange = { tournamentName = it },
-                    placeholder = if (isAr) "أدخل اسم البطولة" else "Enter Tournament Name",
-                    theme = viewModel.appTheme.value
-                )
+            }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .background(
+                        if (isHistoryView) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                        RoundedCornerShape(12.dp)
+                    )
+                    .border(
+                        BorderStroke(
+                            if (isHistoryView) 2.dp else 1.dp,
+                            if (isHistoryView) accentColor else cardBorderColor
+                        ),
+                        RoundedCornerShape(12.dp)
+                    )
+                    .clickable { isHistoryView = true }
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
-                    text = if (isAr) "عدد اللاعبين المتنافسين:" else "Number of Competitors:",
-                    color = textColorPrimary,
+                    text = if (isAr) "سجل البطولات 📜" else "Tournaments History 📜",
                     fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
+                    color = if (isHistoryView) accentColor else textColorSecondary
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    listOf(4, 8).forEach { count ->
-                        val isSelected = playerCount == count
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    BorderStroke(
-                                        if (isSelected) 2.dp else 1.dp,
-                                        if (isSelected) accentColor else cardBorderColor
-                                    ),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { playerCount = count }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (isAr) "$count لاعبين" else "$count Players",
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) accentColor else textColorSecondary
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                Text(
-                    text = if (isAr) "نظام البطولة:" else "Tournament Format:",
-                    color = textColorPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    listOf("KNOCKOUT", "LEAGUE").forEach { type ->
-                        val isSelected = tournamentType == type
-                        val label = if (type == "KNOCKOUT") {
-                            if (isAr) "خروج المغلوب ⚔️" else "Knockout ⚔️"
-                        } else {
-                            if (isAr) "دوري النقاط 📊" else "Round Robin 📊"
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .background(
-                                    if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    BorderStroke(
-                                        if (isSelected) 2.dp else 1.dp,
-                                        if (isSelected) accentColor else cardBorderColor
-                                    ),
-                                    RoundedCornerShape(12.dp)
-                                )
-                                .clickable { tournamentType = type }
-                                .padding(vertical = 12.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                fontWeight = FontWeight.Bold,
-                                color = if (isSelected) accentColor else textColorSecondary
-                            )
-                        }
-                    }
-                }
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = cardBgColor),
-            border = BorderStroke(1.dp, cardBorderColor)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
+        if (isHistoryView) {
+            // Tournaments History View
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
-                    text = if (isAr) "أسماء اللاعبين وألقابهم ⚔️" else "Player Names & Titles ⚔️",
-                    color = accentColor,
+                    text = if (isAr) "سجل البطولات التاريخية 📜" else "Championships History 📜",
+                    color = textColorPrimary,
                     fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp
+                    fontSize = 16.sp
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = if (isAr) "اضغط على اللقب لتغييره عشوائياً" else "Click the title to cycle it",
-                    color = textColorSecondary,
-                    fontSize = 11.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
 
-                for (i in 0 until playerCount) {
-                    val p = players[i]
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                if (savedTournaments.isNotEmpty()) {
+                    Button(
+                        onClick = { viewModel.clearAllTournaments() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF2D55)),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(accentColor.copy(alpha = 0.1f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(text = "${i + 1}", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
-
-                        OutlinedTextField(
-                            value = p.first,
-                            onValueChange = { newName ->
-                                players = players.toMutableList().apply {
-                                    this[i] = Pair(newName, p.second)
-                                }
-                            },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = textColorPrimary,
-                                unfocusedTextColor = textColorPrimary,
-                                focusedBorderColor = accentColor,
-                                unfocusedBorderColor = cardBorderColor,
-                                focusedContainerColor = if (isLight) Color.White else Color(0xFF0C1020),
-                                unfocusedContainerColor = if (isLight) Color.White else Color(0xFF0C1020)
-                            ),
-                            shape = RoundedCornerShape(10.dp)
+                        Text(
+                            text = if (isAr) "تنظيف السجل بالكامل 🗑️" else "Clear All History 🗑️",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
+                    }
+                }
+            }
 
-                        Box(
-                            modifier = Modifier
-                                .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-                                .border(BorderStroke(1.dp, accentColor), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    val currentIdx = defaultTitles.indexOf(p.second)
-                                    val nextIdx = (if (currentIdx == -1) 0 else currentIdx + 1) % defaultTitles.size
-                                    players = players.toMutableList().apply {
-                                        this[i] = Pair(p.first, defaultTitles[nextIdx])
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = p.second,
-                                color = accentColor,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (savedTournaments.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (isAr) "لا توجد بطولات مسجلة حالياً. أنشئ بطولة جديدة للبدء!" else "No saved tournaments found. Launch a new one to start!",
+                        color = textColorSecondary,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    savedTournaments.forEach { t ->
+                        TournamentHistoryItemCard(
+                            tournament = t,
+                            theme = viewModel.appTheme.value,
+                            onDelete = { viewModel.deleteTournamentById(t.id) },
+                            onClick = { selectedTournament = t }
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        } else {
+            // Creation View
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (isAr) "اسم البطولة:" else "Tournament Name:",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    CustomTextField(
+                        value = tournamentName,
+                        onValueChange = { tournamentName = it },
+                        placeholder = if (isAr) "أدخل اسم البطولة" else "Enter Tournament Name",
+                        theme = viewModel.appTheme.value
+                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = if (isAr) "عدد اللاعبين المتنافسين:" else "Number of Competitors:",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        listOf(4, 8).forEach { count ->
+                            val isSelected = playerCount == count
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        BorderStroke(
+                                            if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) accentColor else cardBorderColor
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { playerCount = count }
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (isAr) "$count لاعبين" else "$count Players",
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) accentColor else textColorSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Text(
+                        text = if (isAr) "نظام البطولة:" else "Tournament Format:",
+                        color = textColorPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        listOf("KNOCKOUT", "LEAGUE").forEach { type ->
+                            val isSelected = tournamentType == type
+                            val label = if (type == "KNOCKOUT") {
+                                if (isAr) "خروج المغلوب ⚔️" else "Knockout ⚔️"
+                            } else {
+                                if (isAr) "دوري النقاط 📊" else "Round Robin 📊"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .border(
+                                        BorderStroke(
+                                            if (isSelected) 2.dp else 1.dp,
+                                            if (isSelected) accentColor else cardBorderColor
+                                        ),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { tournamentType = type }
+                                    .padding(vertical = 12.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isSelected) accentColor else textColorSecondary
+                                )
+                            }
                         }
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (isAr) "أسماء اللاعبين وألقابهم ⚔️" else "Player Names & Titles ⚔️",
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (isAr) "اضغط على اللقب لتغييره عشوائياً" else "Click the title to cycle it",
+                        color = textColorSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    for (i in 0 until playerCount) {
+                        val p = players[i]
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .background(accentColor.copy(alpha = 0.1f), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "${i + 1}", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+
+                            OutlinedTextField(
+                                value = p.first,
+                                onValueChange = { newName ->
+                                    players = players.toMutableList().apply {
+                                        this[i] = Pair(newName, p.second)
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = textColorPrimary,
+                                    unfocusedTextColor = textColorPrimary,
+                                    focusedBorderColor = accentColor,
+                                    unfocusedBorderColor = cardBorderColor,
+                                    focusedContainerColor = if (isLight) Color.White else Color(0xFF0C1020),
+                                    unfocusedContainerColor = if (isLight) Color.White else Color(0xFF0C1020)
+                                ),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                    .border(BorderStroke(1.dp, accentColor), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val currentIdx = defaultTitles.indexOf(p.second)
+                                        val nextIdx = (if (currentIdx == -1) 0 else currentIdx + 1) % defaultTitles.size
+                                        players = players.toMutableList().apply {
+                                            this[i] = Pair(p.first, defaultTitles[nextIdx])
+                                        }
+                                    }
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = p.second,
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    val finalPlayers = players.take(playerCount)
+                    viewModel.startNewTournament(tournamentName, tournamentType, finalPlayers)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = if (isLight) Color.White else Color(0xFF090C15))
+            ) {
+                Text(
+                    text = if (isAr) "بدء المواجهات الحماسية ⚔️" else "Launch Current Matches ⚔️",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(48.dp))
         }
+    }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = {
-                val finalPlayers = players.take(playerCount)
-                viewModel.startNewTournament(tournamentName, tournamentType, finalPlayers)
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = if (isLight) Color.White else Color(0xFF090C15))
-        ) {
-            Text(
-                text = if (isAr) "بدء المواجهات الحماسية ⚔️" else "Launch Current Matches ⚔️",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
-            )
-        }
-
-        Spacer(modifier = Modifier.height(48.dp))
+    // Detail modal display
+    if (selectedTournament != null) {
+        TournamentDetailsDialog(
+            tournament = selectedTournament!!,
+            viewModel = viewModel,
+            onDismiss = { selectedTournament = null },
+            onResume = {
+                viewModel.resumeTournament(selectedTournament!!)
+            }
+        )
     }
 }
 
