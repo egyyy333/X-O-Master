@@ -317,6 +317,10 @@ class GameViewModel(
     // Track if all hints are used in a single game for the achievement
     private var hintsUsedInCurrentGame = 0
 
+    private var turnStartTime: Long = 0L
+    private var p1TimeAccumulated: Int = 0
+    private var p2TimeAccumulated: Int = 0
+
     // Game record history retrieved reactively from Room DB
     val history: StateFlow<List<GameRecord>> = repository.allRecords
         .stateIn(
@@ -523,6 +527,9 @@ class GameViewModel(
         _p2MovesCount.value = 0
         _p1ThinkingSeconds.value = 0
         _p2ThinkingSeconds.value = 0
+        p1TimeAccumulated = 0
+        p2TimeAccumulated = 0
+        turnStartTime = System.currentTimeMillis()
         
         if (_gameMode.value == "VS_BOT") {
             _p1HintCount.value = 3
@@ -546,23 +553,46 @@ class GameViewModel(
 
     fun startStopwatch() {
         stopwatchJob?.cancel()
+        turnStartTime = System.currentTimeMillis()
         stopwatchJob = viewModelScope.launch {
             while (true) {
-                delay(1000)
-                if (!_isGameOver.value && !_isBotThinking.value) {
+                delay(100)
+                if (!_isGameOver.value) {
                     val isP1 = if (_gameMode.value == "VS_BOT") {
                         _currentTurn.value == _playerSymbol.value
                     } else {
                         _currentTurn.value == "X"
                     }
+                    val elapsedSecs = ((System.currentTimeMillis() - turnStartTime) / 1000).toInt()
                     if (isP1) {
-                        _p1ThinkingSeconds.value += 1
+                        _p1ThinkingSeconds.value = p1TimeAccumulated + elapsedSecs
                     } else {
-                        _p2ThinkingSeconds.value += 1
+                        _p2ThinkingSeconds.value = p2TimeAccumulated + elapsedSecs
                     }
                 }
             }
         }
+    }
+
+    fun finalizeTurnTime() {
+        val turnDurationMs = System.currentTimeMillis() - turnStartTime
+        val turnDurationSecs = Math.max(1, Math.round(turnDurationMs / 1000.0).toInt())
+        
+        val isP1 = if (_gameMode.value == "VS_BOT") {
+            _currentTurn.value == _playerSymbol.value
+        } else {
+            _currentTurn.value == "X"
+        }
+        
+        if (isP1) {
+            p1TimeAccumulated += turnDurationSecs
+            _p1ThinkingSeconds.value = p1TimeAccumulated
+        } else {
+            p2TimeAccumulated += turnDurationSecs
+            _p2ThinkingSeconds.value = p2TimeAccumulated
+        }
+        
+        turnStartTime = System.currentTimeMillis()
     }
 
     fun stopStopwatch() {
@@ -576,7 +606,11 @@ class GameViewModel(
         return if (name.isNotEmpty()) {
             if (title.isNotEmpty()) "$title $name" else name
         } else {
-            if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
+            if (_gameMode.value == "VS_BOT") {
+                if (Localizer.currentLanguage == "AR") "اللاعب" else "Player"
+            } else {
+                if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
+            }
         }
     }
 
@@ -587,7 +621,7 @@ class GameViewModel(
             if (title.isNotEmpty()) "$title $name" else name
         } else {
             if (_gameMode.value == "VS_BOT") {
-                if (Localizer.currentLanguage == "AR") "البوت O" else "Bot O"
+                if (Localizer.currentLanguage == "AR") "البوت" else "Bot"
             } else {
                 if (Localizer.currentLanguage == "AR") "اللاعب O" else "Player O"
             }
@@ -603,6 +637,8 @@ class GameViewModel(
         if (_isGameOver.value || _board.value[index] != null || _isBotThinking.value) {
             return
         }
+
+        finalizeTurnTime()
 
         // Record history before move
         boardHistory.add(_board.value)
@@ -687,6 +723,8 @@ class GameViewModel(
                 val updatedBoard = currentBoard.toMutableList()
                 updatedBoard[move] = botSymbol
                 _board.value = updatedBoard
+
+                finalizeTurnTime()
 
                 // Check winner
                 val (winnerSymbol, winningLineIndexes) = GameEngine.checkWinner(updatedBoard)
@@ -924,6 +962,9 @@ class GameViewModel(
         _p2MovesCount.value = 0
         _p1ThinkingSeconds.value = 0
         _p2ThinkingSeconds.value = 0
+        p1TimeAccumulated = 0
+        p2TimeAccumulated = 0
+        turnStartTime = System.currentTimeMillis()
         
         hintsUsedInCurrentGame = 0
         

@@ -92,6 +92,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -2446,6 +2447,10 @@ fun VictoryOverlay(
             .clickable(enabled = false) {},
         contentAlignment = Alignment.Center
     ) {
+        if (winner != null) {
+            ConfettiRain()
+        }
+
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
@@ -2577,6 +2582,12 @@ fun VictoryOverlay(
                                 .border(BorderStroke(2.dp, titleColor), androidx.compose.foundation.shape.CircleShape)
                                 .padding(12.dp)
                         ) {
+                            Text(
+                                text = "🏆",
+                                fontSize = 38.sp,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = wName,
                                 color = textColorPrimary,
@@ -2843,6 +2854,57 @@ fun VictoryOverlay(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+fun ConfettiRain() {
+    val infiniteTransition = rememberInfiniteTransition(label = "confetti")
+    val animProgress by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "animProgress"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        if (w == 0f || h == 0f) return@Canvas
+
+        val colors = listOf(
+            Color(0xFF00E5FF), Color(0xFFFF2D55), Color(0xFFFFD700),
+            Color(0xFF4ADE80), Color(0xFFA855F7), Color(0xFFF97316)
+        )
+
+        for (i in 0 until 50) {
+            val seed = i * 17
+            val startX = (seed % 100) / 100f * w
+            val speedY = 0.5f + ((seed % 6) / 10f)
+            val swingAmplitude = 10.dp.toPx() + (seed % 4) * 4.dp.toPx()
+            val swingSpeed = 3f + (seed % 3) * 2f
+
+            val currentY = (speedY * animProgress * h * 1.15f - 15.dp.toPx()) % (h + 30.dp.toPx())
+            val currentX = startX + Math.sin((animProgress * swingSpeed + i).toDouble()).toFloat() * swingAmplitude
+
+            val sizeW = 6.dp.toPx() + (seed % 3) * 2.dp.toPx()
+            val sizeH = 3.dp.toPx() + (seed % 2) * 2.dp.toPx()
+            val color = colors[i % colors.size]
+
+            val angle = (animProgress * 360f * (1f + (seed % 2))) + seed
+
+            rotate(degrees = angle, pivot = Offset(currentX, currentY)) {
+                drawRoundRect(
+                    color = color,
+                    topLeft = Offset(currentX - sizeW / 2, currentY - sizeH / 2),
+                    size = androidx.compose.ui.geometry.Size(sizeW, sizeH),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(2.dp.toPx(), 2.dp.toPx())
+                )
+            }
         }
     }
 }
