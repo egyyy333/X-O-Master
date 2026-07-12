@@ -4361,6 +4361,7 @@ fun TournamentChampionScreen(
                 .fillMaxSize()
                 .statusBarsPadding()
                 .padding(24.dp)
+                .verticalScroll(rememberScrollState())
                 .graphicsLayer(
                     alpha = alphaAnim,
                     translationY = translateYAnim
