@@ -12,6 +12,9 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -60,6 +63,7 @@ import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -90,6 +94,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -340,10 +346,25 @@ fun CrossfadeScreen(
                         GameScreen(viewModel = viewModel, onBackClicked = { showDashboard = true })
                     }
                 } else {
-                    TournamentChampionScreen(viewModel = viewModel, onFinish = {
-                        viewModel.clearActiveTournament()
-                        onBackToHome()
-                    })
+                    var showLeaderboardPostMatch by remember { mutableStateOf(false) }
+                    if (showLeaderboardPostMatch) {
+                        TournamentDashboardScreen(
+                            viewModel = viewModel,
+                            onPlayMatch = {},
+                            onBack = { showLeaderboardPostMatch = false }
+                        )
+                    } else {
+                        TournamentChampionScreen(
+                            viewModel = viewModel,
+                            onFinish = {
+                                viewModel.clearActiveTournament()
+                                onBackToHome()
+                            },
+                            onViewLeaderboard = {
+                                showLeaderboardPostMatch = true
+                            }
+                        )
+                    }
                 }
             } else {
                 GameScreen(viewModel = viewModel, onBackClicked = onBackToHome)
@@ -568,10 +589,10 @@ fun HomeScreen(
             enter = fadeIn() + scaleIn(),
             exit = fadeOut() + scaleOut()
         ) {
-            val p1Name by viewModel.p1Name.collectAsState()
-            val p1Title by viewModel.p1Title.collectAsState()
-            val p2Name by viewModel.p2Name.collectAsState()
-            val p2Title by viewModel.p2Title.collectAsState()
+            val p1Name by viewModel.friendP1Name.collectAsState()
+            val p1Title by viewModel.friendP1Title.collectAsState()
+            val p2Name by viewModel.friendP2Name.collectAsState()
+            val p2Title by viewModel.friendP2Title.collectAsState()
 
             Card(
                 modifier = Modifier
@@ -600,7 +621,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     CustomTextField(
                         value = p1Name,
-                        onValueChange = { viewModel.setPlayer1Info(it, p1Title) },
+                        onValueChange = { viewModel.setFriendP1Info(it, p1Title) },
                         placeholder = if (viewModel.appLanguage.value == "AR") "أدخل اسم اللاعب الأول" else "Enter Player 1 Name",
                         theme = appTheme
                     )
@@ -631,7 +652,7 @@ fun HomeScreen(
                                     )
                                     .clickable {
                                         triggerClickFeedback()
-                                        viewModel.setPlayer1Info(p1Name, title)
+                                        viewModel.setFriendP1Info(p1Name, title)
                                     }
                                     .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
@@ -660,7 +681,7 @@ fun HomeScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     CustomTextField(
                         value = p2Name,
-                        onValueChange = { viewModel.setPlayer2Info(it, p2Title) },
+                        onValueChange = { viewModel.setFriendP2Info(it, p2Title) },
                         placeholder = if (viewModel.appLanguage.value == "AR") "أدخل اسم اللاعب الثاني" else "Enter Player 2 Name",
                         theme = appTheme
                     )
@@ -691,7 +712,7 @@ fun HomeScreen(
                                     )
                                     .clickable {
                                         triggerClickFeedback()
-                                        viewModel.setPlayer2Info(p2Name, title)
+                                        viewModel.setFriendP2Info(p2Name, title)
                                     }
                                     .padding(vertical = 6.dp),
                                 contentAlignment = Alignment.Center
@@ -699,6 +720,91 @@ fun HomeScreen(
                                 Text(
                                     text = title,
                                     fontSize = 10.sp,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (isSelected) accentColor else textColorSecondary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Single Player Setup (Visible only if VS_BOT)
+        AnimatedVisibility(
+            visible = activeMode == "VS_BOT",
+            enter = fadeIn() + scaleIn(),
+            exit = fadeOut() + scaleOut()
+        ) {
+            val botPName by viewModel.botPlayerName.collectAsState()
+            val botPTitle by viewModel.botPlayerTitle.collectAsState()
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 500.dp)
+                    .padding(vertical = 8.dp),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                border = BorderStroke(1.dp, cardBorderColor)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = if (viewModel.appLanguage.value == "AR") "إعداد اسم اللاعب ضد البوت 👤" else "Player vs Bot Setup 👤",
+                        color = accentColor,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = if (viewModel.appLanguage.value == "AR") "اسمك الكريم:" else "Your Name:",
+                        color = textColorPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    CustomTextField(
+                        value = botPName,
+                        onValueChange = { viewModel.setBotPlayerInfo(it, botPTitle) },
+                        placeholder = if (viewModel.appLanguage.value == "AR") "أدخل اسمك ضد البوت" else "Enter your name vs Bot",
+                        theme = appTheme
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Player selectable titles for Bot Mode
+                    val pBotTitles = listOf("البطل", "الأسطورة", "الذكي", "المتحدي", "العبقري")
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        pBotTitles.forEach { title ->
+                            val isSelected = botPTitle == title
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .background(
+                                        if (isSelected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .border(
+                                        BorderStroke(
+                                            1.dp,
+                                            if (isSelected) accentColor else cardBorderColor
+                                        ),
+                                        RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable {
+                                        triggerClickFeedback()
+                                        viewModel.setBotPlayerInfo(botPName, title)
+                                    }
+                                    .padding(vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = title,
+                                    fontSize = 11.sp,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isSelected) accentColor else textColorSecondary,
                                     maxLines = 1,
@@ -3503,7 +3609,9 @@ fun TournamentSetupScreen(
                             tournament = t,
                             theme = viewModel.appTheme.value,
                             onDelete = { viewModel.deleteTournamentById(t.id) },
-                            onClick = { selectedTournament = t }
+                            onClick = { 
+                                viewModel.resumeTournament(t)
+                            }
                         )
                     }
                 }
@@ -4181,7 +4289,8 @@ fun TournamentDashboardScreen(
 @Composable
 fun TournamentChampionScreen(
     viewModel: com.example.ui.GameViewModel,
-    onFinish: () -> Unit
+    onFinish: () -> Unit,
+    onViewLeaderboard: () -> Unit
 ) {
     val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
     val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
@@ -4191,77 +4300,208 @@ fun TournamentChampionScreen(
 
     val winnerName by viewModel.tournamentWinnerName.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    var startAnimation by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        startAnimation = true
+    }
+
+    val alphaAnim by animateFloatAsState(
+        targetValue = if (startAnimation) 1f else 0f,
+        animationSpec = tween(1200, easing = LinearOutSlowInEasing),
+        label = "alpha"
+    )
+    val translateYAnim by animateFloatAsState(
+        targetValue = if (startAnimation) 0f else 40f,
+        animationSpec = tween(1200, easing = LinearOutSlowInEasing),
+        label = "translateY"
+    )
+
+    // Crown floating & pulsing animations
+    val infiniteTransition = rememberInfiniteTransition(label = "champion_crown")
+    
+    val crownScale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "crownScale"
+    )
+
+    val crownRotation by infiniteTransition.animateFloat(
+        initialValue = -6f,
+        targetValue = 6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "crownRotation"
+    )
+
+    val rayRotation by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rayRotation"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier.size(160.dp),
-            contentAlignment = Alignment.Center
+        // Glorious continuous confetti rain falling in background
+        ConfettiRain()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .padding(24.dp)
+                .graphicsLayer(
+                    alpha = alphaAnim,
+                    translationY = translateYAnim
+                ),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFFFFD700).copy(alpha = 0.25f), Color.Transparent)
+            Box(
+                modifier = Modifier.size(180.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                // Majestic spinning rays behind the crown
+                Canvas(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(rotationZ = rayRotation)
+                ) {
+                    val center = Offset(size.width / 2, size.height / 2)
+                    val radius = size.width / 2
+                    
+                    val rayCount = 8
+                    val angleStep = 360f / rayCount
+                    for (i in 0 until rayCount) {
+                        val path = Path().apply {
+                            moveTo(center.x, center.y)
+                            val angle1 = Math.toRadians((i * angleStep - 15).toDouble())
+                            val angle2 = Math.toRadians((i * angleStep + 15).toDouble())
+                            lineTo(
+                                (center.x + radius * Math.cos(angle1)).toFloat(),
+                                (center.y + radius * Math.sin(angle1)).toFloat()
+                            )
+                            lineTo(
+                                (center.x + radius * Math.cos(angle2)).toFloat(),
+                                (center.y + radius * Math.sin(angle2)).toFloat()
+                            )
+                            close()
+                        }
+                        drawPath(
+                            path = path,
+                            color = Color(0xFFFFD700).copy(alpha = 0.15f)
+                        )
+                    }
+                    
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(Color(0xFFFFD700).copy(alpha = 0.35f), Color.Transparent),
+                            center = center,
+                            radius = radius
+                        )
+                    )
+                }
+                
+                // Pulsing, floating crown
+                Text(
+                    text = "👑",
+                    fontSize = 84.sp,
+                    modifier = Modifier.graphicsLayer(
+                        scaleX = crownScale,
+                        scaleY = crownScale,
+                        rotationZ = crownRotation
                     )
                 )
             }
-            Text(text = "👑", fontSize = 80.sp)
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-        Text(
-            text = if (isAr) "بطل البطولة الأسطوري! 🎉" else "Legendary Champion! 🎉",
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFFFFD700),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = winnerName ?: (if (isAr) "البدل المجهول" else "Unknown Champion"),
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Black,
-            color = textColorPrimary,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = if (isAr) {
-                "تهانينا الحارة للبطل المغوار على سحق جميع الخصوم في هذه المنافسة الملحمية!"
-            } else {
-                "Warm congratulations to the legendary fighter for defeating all competitors in this epic battle!"
-            },
-            fontSize = 14.sp,
-            color = textColorSecondary,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(horizontal = 24.dp)
-        )
-
-        Spacer(modifier = Modifier.height(48.dp))
-
-        Button(
-            onClick = onFinish,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(28.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = accentColor, contentColor = if (isLight) Color.White else Color(0xFF090C15))
-        ) {
             Text(
-                text = if (isAr) "العودة للقائمة الرئيسية 🏠" else "Back to Main Menu 🏠",
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                text = if (isAr) "بطل البطولة الأسطوري! 🎉" else "Legendary Champion! 🎉",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFFFFD700),
+                textAlign = TextAlign.Center
             )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Text(
+                text = winnerName ?: (if (isAr) "البطل المجهول" else "Unknown Champion"),
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = textColorPrimary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = if (isAr) {
+                    "تهانينا الحارة للبطل المغوار على سحق جميع الخصوم في هذه المنافسة الملحمية!"
+                } else {
+                    "Warm congratulations to the legendary fighter for defeating all competitors in this epic battle!"
+                },
+                fontSize = 14.sp,
+                color = textColorSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+
+            // Button 1: Back to Main Menu
+            Button(
+                onClick = onFinish,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = accentColor,
+                    contentColor = if (isLight) Color.White else Color(0xFF090C15)
+                ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+            ) {
+                Text(
+                    text = if (isAr) "العودة للقائمة الرئيسية 🏠" else "Back to Main Menu 🏠",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Button 2: Return to Standings / Leaderboard
+            OutlinedButton(
+                onClick = onViewLeaderboard,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(28.dp),
+                border = BorderStroke(2.dp, accentColor),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = accentColor,
+                    containerColor = Color.Transparent
+                )
+            ) {
+                Text(
+                    text = if (isAr) "عرض لوحة الصدارة وجدول المواجهات 📊" else "View Standings & Match History 📊",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp
+                )
+            }
         }
     }
 }

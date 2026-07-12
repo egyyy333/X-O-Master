@@ -188,18 +188,44 @@ class GameViewModel(
 
     private val prefs = application.getSharedPreferences("xo_master_prefs", Context.MODE_PRIVATE)
 
-    // Player 1 & 2 customized names and titles
-    private val _p1Name = MutableStateFlow(prefs.getString("p1_name", "") ?: "")
-    val p1Name: StateFlow<String> = _p1Name.asStateFlow()
+    // VS_FRIEND (Local Multiplayer) Name & Title
+    private val _friendP1Name = MutableStateFlow(prefs.getString("friend_p1_name", prefs.getString("p1_name", "") ?: "") ?: "")
+    val friendP1Name: StateFlow<String> = _friendP1Name.asStateFlow()
 
-    private val _p1Title = MutableStateFlow(prefs.getString("p1_title", "") ?: "")
-    val p1Title: StateFlow<String> = _p1Title.asStateFlow()
+    private val _friendP1Title = MutableStateFlow(prefs.getString("friend_p1_title", prefs.getString("p1_title", "") ?: "") ?: "")
+    val friendP1Title: StateFlow<String> = _friendP1Title.asStateFlow()
 
-    private val _p2Name = MutableStateFlow(prefs.getString("p2_name", "") ?: "")
-    val p2Name: StateFlow<String> = _p2Name.asStateFlow()
+    private val _friendP2Name = MutableStateFlow(prefs.getString("friend_p2_name", prefs.getString("p2_name", "") ?: "") ?: "")
+    val friendP2Name: StateFlow<String> = _friendP2Name.asStateFlow()
 
-    private val _p2Title = MutableStateFlow(prefs.getString("p2_title", "") ?: "")
-    val p2Title: StateFlow<String> = _p2Title.asStateFlow()
+    private val _friendP2Title = MutableStateFlow(prefs.getString("friend_p2_title", prefs.getString("p2_title", "") ?: "") ?: "")
+    val friendP2Title: StateFlow<String> = _friendP2Title.asStateFlow()
+
+    // VS_BOT Name & Title
+    private val _botPlayerName = MutableStateFlow(prefs.getString("bot_player_name", "") ?: "")
+    val botPlayerName: StateFlow<String> = _botPlayerName.asStateFlow()
+
+    private val _botPlayerTitle = MutableStateFlow(prefs.getString("bot_player_title", "") ?: "")
+    val botPlayerTitle: StateFlow<String> = _botPlayerTitle.asStateFlow()
+
+    // Active TOURNAMENT match Name & Title
+    private val _tournamentP1Name = MutableStateFlow("")
+    val tournamentP1Name: StateFlow<String> = _tournamentP1Name.asStateFlow()
+
+    private val _tournamentP1Title = MutableStateFlow("")
+    val tournamentP1Title: StateFlow<String> = _tournamentP1Title.asStateFlow()
+
+    private val _tournamentP2Name = MutableStateFlow("")
+    val tournamentP2Name: StateFlow<String> = _tournamentP2Name.asStateFlow()
+
+    private val _tournamentP2Title = MutableStateFlow("")
+    val tournamentP2Title: StateFlow<String> = _tournamentP2Title.asStateFlow()
+
+    // Aliases/Legacy for backward compatibility
+    val p1Name: StateFlow<String> get() = _friendP1Name.asStateFlow()
+    val p1Title: StateFlow<String> get() = _friendP1Title.asStateFlow()
+    val p2Name: StateFlow<String> get() = _friendP2Name.asStateFlow()
+    val p2Title: StateFlow<String> get() = _friendP2Title.asStateFlow()
 
     // Clicks and thinking time statistics
     private val _p1MovesCount = MutableStateFlow(0)
@@ -317,6 +343,8 @@ class GameViewModel(
     // Track if all hints are used in a single game for the achievement
     private var hintsUsedInCurrentGame = 0
 
+    private var lastFriendStartingSymbol = "O"
+
     private var turnStartTime: Long = 0L
     private var p1TimeAccumulated: Int = 0
     private var p2TimeAccumulated: Int = 0
@@ -389,16 +417,30 @@ class GameViewModel(
         prefs.edit().putString("app_language", language).apply()
     }
 
+    fun setFriendP1Info(name: String, title: String) {
+        _friendP1Name.value = name
+        _friendP1Title.value = title
+        prefs.edit().putString("friend_p1_name", name).putString("friend_p1_title", title).apply()
+    }
+
+    fun setFriendP2Info(name: String, title: String) {
+        _friendP2Name.value = name
+        _friendP2Title.value = title
+        prefs.edit().putString("friend_p2_name", name).putString("friend_p2_title", title).apply()
+    }
+
+    fun setBotPlayerInfo(name: String, title: String) {
+        _botPlayerName.value = name
+        _botPlayerTitle.value = title
+        prefs.edit().putString("bot_player_name", name).putString("bot_player_title", title).apply()
+    }
+
     fun setPlayer1Info(name: String, title: String) {
-        _p1Name.value = name
-        _p1Title.value = title
-        prefs.edit().putString("p1_name", name).putString("p1_title", title).apply()
+        setFriendP1Info(name, title)
     }
 
     fun setPlayer2Info(name: String, title: String) {
-        _p2Name.value = name
-        _p2Title.value = title
-        prefs.edit().putString("p2_name", name).putString("p2_title", title).apply()
+        setFriendP2Info(name, title)
     }
 
     // ==========================================
@@ -506,12 +548,23 @@ class GameViewModel(
         _scoreX.value = 0
         _scoreO.value = 0
         _scoreDraws.value = 0
+        lastFriendStartingSymbol = "O"
         saveGameState()
     }
 
     fun resetGame() {
+        if (_gameMode.value == "TOURNAMENT") {
+            setupActiveTournamentMatch()
+            return
+        }
+
         _board.value = List(9) { null }
-        _currentTurn.value = "X"
+        if (_gameMode.value == "VS_FRIEND") {
+            lastFriendStartingSymbol = if (lastFriendStartingSymbol == "X") "O" else "X"
+            _currentTurn.value = lastFriendStartingSymbol
+        } else {
+            _currentTurn.value = "X"
+        }
         _winner.value = null
         _winningLine.value = null
         _isGameOver.value = false
@@ -601,28 +654,64 @@ class GameViewModel(
     }
 
     fun getPlayer1DisplayName(): String {
-        val name = _p1Name.value.trim()
-        val title = _p1Title.value.trim()
-        return if (name.isNotEmpty()) {
-            if (title.isNotEmpty()) "$title $name" else name
-        } else {
-            if (_gameMode.value == "VS_BOT") {
-                if (Localizer.currentLanguage == "AR") "اللاعب" else "Player"
-            } else {
+        return when (_gameMode.value) {
+            "VS_BOT" -> {
+                val name = _botPlayerName.value.trim()
+                val title = _botPlayerTitle.value.trim()
+                if (name.isNotEmpty()) {
+                    if (title.isNotEmpty()) "$title $name" else name
+                } else {
+                    if (Localizer.currentLanguage == "AR") "اللاعب" else "Player"
+                }
+            }
+            "VS_FRIEND" -> {
+                val name = _friendP1Name.value.trim()
+                val title = _friendP1Title.value.trim()
+                if (name.isNotEmpty()) {
+                    if (title.isNotEmpty()) "$title $name" else name
+                } else {
+                    if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
+                }
+            }
+            "TOURNAMENT" -> {
+                val name = _tournamentP1Name.value.trim()
+                val title = _tournamentP1Title.value.trim()
+                if (name.isNotEmpty()) {
+                    if (title.isNotEmpty()) "$title $name" else name
+                } else {
+                    if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
+                }
+            }
+            else -> {
                 if (Localizer.currentLanguage == "AR") "اللاعب X" else "Player X"
             }
         }
     }
 
     fun getPlayer2DisplayName(): String {
-        val name = _p2Name.value.trim()
-        val title = _p2Title.value.trim()
-        return if (name.isNotEmpty()) {
-            if (title.isNotEmpty()) "$title $name" else name
-        } else {
-            if (_gameMode.value == "VS_BOT") {
-                if (Localizer.currentLanguage == "AR") "البوت" else "Bot"
-            } else {
+        return when (_gameMode.value) {
+            "VS_BOT" -> {
+                if (Localizer.currentLanguage == "AR") "البوت 🤖" else "Bot 🤖"
+            }
+            "VS_FRIEND" -> {
+                val name = _friendP2Name.value.trim()
+                val title = _friendP2Title.value.trim()
+                if (name.isNotEmpty()) {
+                    if (title.isNotEmpty()) "$title $name" else name
+                } else {
+                    if (Localizer.currentLanguage == "AR") "اللاعب O" else "Player O"
+                }
+            }
+            "TOURNAMENT" -> {
+                val name = _tournamentP2Name.value.trim()
+                val title = _tournamentP2Title.value.trim()
+                if (name.isNotEmpty()) {
+                    if (title.isNotEmpty()) "$title $name" else name
+                } else {
+                    if (Localizer.currentLanguage == "AR") "اللاعب O" else "Player O"
+                }
+            }
+            else -> {
                 if (Localizer.currentLanguage == "AR") "اللاعب O" else "Player O"
             }
         }
@@ -838,6 +927,60 @@ class GameViewModel(
         }
     }
 
+    private fun scheduleLeagueMatches(playersCount: Int): List<TournamentMatch> {
+        val pool = mutableListOf<TournamentMatch>()
+        for (i in 0 until playersCount) {
+            for (j in i + 1 until playersCount) {
+                // Alternating starts: if (i + j) is odd, i is player1, else j is player1
+                if ((i + j) % 2 == 1) {
+                    pool.add(TournamentMatch(player1Idx = i, player2Idx = j))
+                } else {
+                    pool.add(TournamentMatch(player1Idx = j, player2Idx = i))
+                }
+            }
+        }
+
+        // Greedy scheduling to minimize consecutive matches for any player
+        val scheduled = mutableListOf<TournamentMatch>()
+        val lastPlayed = IntArray(playersCount) { -1 }
+
+        var k = 0
+        while (pool.isNotEmpty()) {
+            var bestMatchIdx = 0
+            var maxMinGap = -1
+            var maxSumGap = -1
+
+            for (idx in pool.indices) {
+                val match = pool[idx]
+                val p1 = match.player1Idx
+                val p2 = match.player2Idx
+
+                val gap1 = if (lastPlayed[p1] == -1) 999 else k - lastPlayed[p1]
+                val gap2 = if (lastPlayed[p2] == -1) 999 else k - lastPlayed[p2]
+
+                val minGap = Math.min(gap1, gap2)
+                val sumGap = gap1 + gap2
+
+                if (minGap > maxMinGap) {
+                    maxMinGap = minGap
+                    maxSumGap = sumGap
+                    bestMatchIdx = idx
+                } else if (minGap == maxMinGap && sumGap > maxSumGap) {
+                    maxSumGap = sumGap
+                    bestMatchIdx = idx
+                }
+            }
+
+            val chosen = pool.removeAt(bestMatchIdx)
+            scheduled.add(chosen)
+            lastPlayed[chosen.player1Idx] = k
+            lastPlayed[chosen.player2Idx] = k
+            k++
+        }
+
+        return scheduled
+    }
+
     // ==========================================
     // TOURNAMENT CONTROLLER LOGIC
     // ==========================================
@@ -857,12 +1000,7 @@ class GameViewModel(
         // Generate Matches
         val generated = mutableListOf<TournamentMatch>()
         if (type == "LEAGUE") {
-            for (i in players.indices) {
-                for (j in i + 1 until players.size) {
-                    generated.add(TournamentMatch(player1Idx = i, player2Idx = j))
-                }
-            }
-            generated.shuffle()
+            generated.addAll(scheduleLeagueMatches(players.size))
         } else {
             // KNOCKOUT MATCH GENERATION
             if (players.size == 8) {
@@ -927,16 +1065,22 @@ class GameViewModel(
         val matches = _tournamentMatches.value
         if (idx in matches.indices) {
             val match = matches[idx]
-            val p1Idx = getActualPlayerIndexForMatch(match.player1Idx, matches)
-            val p2Idx = getActualPlayerIndexForMatch(match.player2Idx, matches)
+            
+            // Swap player assignments to be fair in case of a replay (tie break)
+            val isReplay = _isTournamentReplay.value
+            val p1IdxRaw = getActualPlayerIndexForMatch(match.player1Idx, matches)
+            val p2IdxRaw = getActualPlayerIndexForMatch(match.player2Idx, matches)
+            
+            val p1Idx = if (isReplay) p2IdxRaw else p1IdxRaw
+            val p2Idx = if (isReplay) p1IdxRaw else p2IdxRaw
 
             val p1 = if (p1Idx in _tournamentPlayers.value.indices) _tournamentPlayers.value[p1Idx] else Pair("?", "?")
             val p2 = if (p2Idx in _tournamentPlayers.value.indices) _tournamentPlayers.value[p2Idx] else Pair("?", "?")
 
-            _p1Name.value = p1.first
-            _p1Title.value = p1.second
-            _p2Name.value = p2.first
-            _p2Title.value = p2.second
+            _tournamentP1Name.value = p1.first
+            _tournamentP1Title.value = p1.second
+            _tournamentP2Name.value = p2.first
+            _tournamentP2Title.value = p2.second
 
             _playerSymbol.value = "X"
             _p1HintCount.value = 2
