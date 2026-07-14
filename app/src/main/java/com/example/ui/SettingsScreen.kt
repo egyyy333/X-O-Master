@@ -90,6 +90,14 @@ fun SettingsScreen(
     ) {
         Spacer(modifier = Modifier.height(16.dp))
 
+        val themeColors = ThemeColors.fromTheme(appTheme)
+        val isLight = themeColors.isLight
+        val cardBgColor = themeColors.cardBgColor
+        val cardBorderColor = themeColors.cardBorderColor
+        val textColorPrimary = themeColors.textColorPrimary
+        val textColorSecondary = themeColors.textColorSecondary
+        val accentColor = themeColors.accentColor
+
         // Title Header
         Row(
             modifier = Modifier
@@ -102,7 +110,7 @@ fun SettingsScreen(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        if (appTheme == "LIGHT") Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                        if (isLight) Color(0xFFE2E8F0) else cardBorderColor,
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -110,7 +118,7 @@ fun SettingsScreen(
                 Icon(
                     imageVector = Icons.Default.Settings,
                     contentDescription = null,
-                    tint = if (appTheme == "LIGHT") Color(0xFF0F172A) else Color(0xFF00E5FF)
+                    tint = if (isLight) textColorPrimary else accentColor
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
@@ -119,17 +127,12 @@ fun SettingsScreen(
                     text = Localizer.get("tab_settings"),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (appTheme == "LIGHT") Color(0xFF0F172A) else Color.White
+                    color = textColorPrimary
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-
-        val cardBgColor = if (appTheme == "LIGHT") Color.White else Color(0xFF121829)
-        val cardBorderColor = if (appTheme == "LIGHT") Color(0xFFE2E8F0) else Color(0xFF1E293B)
-        val textColorPrimary = if (appTheme == "LIGHT") Color(0xFF0F172A) else Color.White
-        val textColorSecondary = if (appTheme == "LIGHT") Color(0xFF475569) else Color(0xFF94A3B8)
 
         // 1. SOUND SETTINGS CARD
         Card(
@@ -447,10 +450,10 @@ fun SettingsScreen(
                 .padding(vertical = 4.dp),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (appTheme == "LIGHT") Color(0xFFE2E8F0) else Color(0xFF1E293B),
-                contentColor = if (appTheme == "LIGHT") Color(0xFF0F172A) else Color(0xFF00E5FF)
+                containerColor = if (isLight) Color(0xFFE2E8F0) else cardBorderColor,
+                contentColor = if (isLight) textColorPrimary else accentColor
             ),
-            border = BorderStroke(1.dp, if (appTheme == "LIGHT") Color(0xFFCBD5E1) else Color(0xFF2D3748))
+            border = BorderStroke(1.dp, if (isLight) Color(0xFFCBD5E1) else cardBorderColor)
         ) {
             Text(
                 text = if (appLanguage == "AR") "✨ إعادة ضبط السمات للافتراضي (مع حركة ساحرة)" else "✨ Reset to Default Themes (Magic Flow)",
@@ -624,7 +627,7 @@ fun SettingsScreen(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(12.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (appTheme == "LIGHT") Color(0xFFE2E8F0) else Color(0xFF1E293B),
+                                    containerColor = if (isLight) Color(0xFFE2E8F0) else cardBorderColor,
                                     contentColor = textColorPrimary
                                 )
                             ) {

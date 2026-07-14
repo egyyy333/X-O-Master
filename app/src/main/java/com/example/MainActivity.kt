@@ -120,6 +120,7 @@ import com.example.ui.GameViewModelFactory
 import com.example.ui.Localizer
 import com.example.ui.FantasyAnimatedBackground
 import com.example.ui.SettingsScreen
+import com.example.ui.ThemeColors
 import com.example.ui.theme.MyApplicationTheme
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -160,33 +161,36 @@ class MainActivity : ComponentActivity() {
                 CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                     var activeScreen by remember { mutableStateOf(ActiveScreen.HOME) }
 
-                    Scaffold(
-                        modifier = Modifier.fillMaxSize(),
-                        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-                        bottomBar = {
-                            FloatingNavigationBar(
-                                activeScreen = activeScreen,
-                                theme = appTheme,
-                                onTabSelected = { 
-                                    activeScreen = it 
-                                }
-                            )
-                        }
-                    ) { innerPadding ->
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            // High performance animated canvas background matching selected theme
-                            FantasyAnimatedBackground(theme = backgroundTheme)
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        // High performance animated canvas background matching selected theme
+                        FantasyAnimatedBackground(theme = backgroundTheme)
 
-                            CrossfadeScreen(
-                                activeScreen = activeScreen,
-                                viewModel = viewModel,
-                                onNavigateToGame = { activeScreen = ActiveScreen.GAME },
-                                onBackToHome = { activeScreen = ActiveScreen.HOME }
-                            )
+                        Scaffold(
+                            modifier = Modifier.fillMaxSize(),
+                            containerColor = Color.Transparent,
+                            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                            bottomBar = {
+                                FloatingNavigationBar(
+                                    activeScreen = activeScreen,
+                                    theme = appTheme,
+                                    onTabSelected = { 
+                                        activeScreen = it 
+                                    }
+                                )
+                            }
+                        ) { innerPadding ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(innerPadding)
+                            ) {
+                                CrossfadeScreen(
+                                    activeScreen = activeScreen,
+                                    viewModel = viewModel,
+                                    onNavigateToGame = { activeScreen = ActiveScreen.GAME },
+                                    onBackToHome = { activeScreen = ActiveScreen.HOME }
+                                )
+                            }
                         }
                     }
                 }
@@ -203,9 +207,9 @@ fun FloatingNavigationBar(
 ) {
     val haptic = LocalHapticFeedback.current
 
-    val isLight = theme == "LIGHT"
-    val navBgColor = if (isLight) Color.White.copy(alpha = 0.95f) else Color(0xFF121829).copy(alpha = 0.95f)
-    val navBorderColor = if (isLight) Color(0xFFCBD5E1) else Color(0xFF1E293B)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val navBgColor = themeColors.cardBgColor.copy(alpha = 0.92f)
+    val navBorderColor = themeColors.cardBorderColor
 
     Box(
         modifier = Modifier
@@ -286,9 +290,9 @@ fun NavBarItem(
     onClick: () -> Unit,
     testTag: String
 ) {
-    val isLight = theme == "LIGHT"
-    val activeColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
-    val inactiveColor = if (isLight) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val activeColor = themeColors.accentColor
+    val inactiveColor = if (themeColors.isLight) Color(0xFF94A3B8) else Color(0xFF64748B)
 
     Column(
         modifier = Modifier
@@ -389,12 +393,13 @@ fun HomeScreen(
 
     val haptic = LocalHapticFeedback.current
 
-    val isLight = appTheme == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
-    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
-    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(appTheme)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
+    val cardBgColor = themeColors.cardBgColor
+    val cardBorderColor = themeColors.cardBorderColor
+    val accentColor = themeColors.accentColor
 
     fun triggerClickFeedback() {
         GameSoundPlayer.playClick()
@@ -970,17 +975,18 @@ fun DetailedModeCard(
     theme: String,
     onClick: () -> Unit
 ) {
-    val isLight = theme == "LIGHT"
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val isLight = themeColors.isLight
+    val accentColor = themeColors.accentColor
     
     val activeBorder = accentColor
-    val inactiveBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
+    val inactiveBorder = themeColors.cardBorderColor
     
-    val activeBg = if (isLight) Color(0xFF8B5CF6).copy(alpha = 0.08f) else Color(0xFF1A2642)
-    val inactiveBg = if (isLight) Color(0xFFF8FAFC) else Color(0xFF0F1422)
+    val activeBg = themeColors.accentColor.copy(alpha = 0.12f)
+    val inactiveBg = themeColors.cardBgColor
 
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
 
     Box(
         modifier = Modifier
@@ -1069,12 +1075,13 @@ fun GameScreen(viewModel: GameViewModel, onBackClicked: () -> Unit) {
 
     val haptic = LocalHapticFeedback.current
 
-    val isLight = appTheme == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
-    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
-    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(appTheme)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
+    val cardBgColor = themeColors.cardBgColor
+    val cardBorderColor = themeColors.cardBorderColor
+    val accentColor = themeColors.accentColor
 
     fun triggerMoveFeedback() {
         if (isHapticEnabled) {
@@ -1566,12 +1573,13 @@ fun StatsScreen(viewModel: GameViewModel) {
 
     val haptic = LocalHapticFeedback.current
 
-    val isLight = appTheme == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
-    val cardBgColor = if (isLight) Color.White else Color(0xFF121829)
-    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(appTheme)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
+    val cardBgColor = themeColors.cardBgColor
+    val cardBorderColor = themeColors.cardBorderColor
+    val accentColor = themeColors.accentColor
 
     var activeStatsTab by remember { mutableStateOf(0) } // 0: History, 1: Achievements
 
@@ -1831,11 +1839,12 @@ fun AchievementBadgeRow(
     isUnlocked: Boolean,
     theme: String
 ) {
-    val isLight = theme == "LIGHT"
-    val cardBg = if (isLight) Color.White else Color(0xFF101426)
-    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val isLight = themeColors.isLight
+    val cardBg = themeColors.cardBgColor
+    val cardBorder = themeColors.cardBorderColor
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
 
     val badgeColor = if (isUnlocked) Color(0xFFFFD700) else Color(0xFF64748B)
 
@@ -1903,9 +1912,10 @@ fun AchievementBadgeRow(
 @Composable
 fun StatsRingChart(wins: Int, losses: Int, ties: Int, theme: String) {
     val total = wins + losses + ties
-    val isLight = theme == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
 
     if (total == 0) {
         Box(
@@ -2516,12 +2526,13 @@ fun VictoryOverlay(
     onPlayAgain: () -> Unit,
     onMainMenu: () -> Unit
 ) {
-    val isLight = theme == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
-    val cardBg = if (isLight) Color.White else Color(0xFF121829)
-    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(theme)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
+    val cardBg = themeColors.cardBgColor
+    val cardBorder = themeColors.cardBorderColor
+    val accentColor = themeColors.accentColor
 
     val p1Name = viewModel.getPlayer1DisplayName()
     val p1Moves by viewModel.p1MovesCount.collectAsState()
@@ -3130,12 +3141,13 @@ fun TournamentDetailsDialog(
     onDismiss: () -> Unit,
     onResume: () -> Unit
 ) {
-    val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
-    val cardBg = if (isLight) Color.White else Color(0xFF121829)
-    val cardBorder = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
+    val themeColors = ThemeColors.fromTheme(viewModel.appTheme.value)
+    val isLight = themeColors.isLight
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
+    val cardBg = themeColors.cardBgColor
+    val cardBorder = themeColors.cardBorderColor
+    val accentColor = themeColors.accentColor
     val isAr = viewModel.appLanguage.collectAsState().value == "AR"
 
     val players = remember(tournament) { com.example.ui.deserializePlayers(tournament.playersData) }
@@ -3433,12 +3445,13 @@ fun TournamentSetupScreen(
     viewModel: com.example.ui.GameViewModel,
     onBack: () -> Unit
 ) {
-    val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
-    val cardBgColor = if (isLight) Color.White else Color(0xFF0F1426)
-    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val themeColors = ThemeColors.fromTheme(viewModel.appTheme.value)
+    val isLight = themeColors.isLight
+    val accentColor = themeColors.accentColor
+    val cardBgColor = themeColors.cardBgColor
+    val cardBorderColor = themeColors.cardBorderColor
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
     val isAr = viewModel.appLanguage.collectAsState().value == "AR"
 
     var isHistoryView by remember { mutableStateOf(false) }
@@ -4004,12 +4017,13 @@ fun TournamentDashboardScreen(
     onPlayMatch: () -> Unit,
     onBack: () -> Unit
 ) {
-    val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
-    val cardBgColor = if (isLight) Color.White else Color(0xFF0F1426)
-    val cardBorderColor = if (isLight) Color(0xFFE2E8F0) else Color(0xFF1E293B)
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val themeColors = ThemeColors.fromTheme(viewModel.appTheme.value)
+    val isLight = themeColors.isLight
+    val accentColor = themeColors.accentColor
+    val cardBgColor = themeColors.cardBgColor
+    val cardBorderColor = themeColors.cardBorderColor
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
     val isAr = viewModel.appLanguage.collectAsState().value == "AR"
 
     val players by viewModel.tournamentPlayers.collectAsState()
@@ -4292,10 +4306,11 @@ fun TournamentChampionScreen(
     onFinish: () -> Unit,
     onViewLeaderboard: () -> Unit
 ) {
-    val isLight = viewModel.appTheme.collectAsState().value == "LIGHT"
-    val accentColor = if (isLight) Color(0xFF8B5CF6) else Color(0xFF00E5FF)
-    val textColorPrimary = if (isLight) Color(0xFF0F172A) else Color.White
-    val textColorSecondary = if (isLight) Color(0xFF475569) else Color(0xFF94A3B8)
+    val themeColors = ThemeColors.fromTheme(viewModel.appTheme.value)
+    val isLight = themeColors.isLight
+    val accentColor = themeColors.accentColor
+    val textColorPrimary = themeColors.textColorPrimary
+    val textColorSecondary = themeColors.textColorSecondary
     val isAr = viewModel.appLanguage.collectAsState().value == "AR"
 
     val winnerName by viewModel.tournamentWinnerName.collectAsState()
